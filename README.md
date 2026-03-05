@@ -62,7 +62,20 @@ Na página de cada documento, além de "Abrir" e "Descarregar", aparece o botão
 
 Se abrir o `index.html` diretamente (protocolo `file://`), alguns browsers bloqueiam o iframe do PDF e o carregamento de .docx. Use um servidor local (ex.: `npx serve .`) para ler PDFs e previsualizar Word na aplicação.
 
+## Deploy no Vercel (GitHub)
+
+Para que os documentos (PDF e .docx) funcionem no Vercel:
+
+1. **Inclua a pasta `docs/` no repositório**  
+   Os ficheiros que quiser mostrar (ex.: `MA-EPPO-WEB EPPO-V000.pdf`, `IT-DSI- CRIAR TICKET NO TICKETBI-V001.docx`) têm de estar dentro de `docs/` e ser commitados no Git. Se `docs/` não for enviada para o GitHub, o Vercel devolve 404 ao pedir `/docs/ficheiro.pdf`.
+
+2. **O ficheiro `vercel.json`**  
+   Está configurado para que os pedidos a `/docs/*` não sejam reescritos para `index.html`. Assim, o Vercel serve os ficheiros estáticos da pasta `docs/` e o iframe da leitura do manual / a previsualização Word passam a funcionar.
+
+Depois do deploy, confirme que os nomes dos ficheiros em `docs/` coincidem exatamente com os `filePath` dos documentos no código (incluindo espaços e acentos).
+
 ## Estrutura
 
 - **index.html** — Tudo num só ficheiro: HTML, dados dos documentos e JavaScript. Abre e está pronto.
-- **docs/** — Pasta para colocar PDFs e ficheiros .docx dos documentos.
+- **docs/** — Pasta para colocar PDFs e ficheiros .docx dos documentos (tem de estar no Git para o Vercel os servir).
+- **vercel.json** — Configuração para o Vercel servir corretamente os ficheiros em `docs/`.
