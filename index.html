@@ -46,7 +46,7 @@
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-16">
         <a href="#/" class="flex items-center gap-3 font-semibold text-lg tracking-tight group">
-          <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg font-bold group-hover:bg-white/30 transition">D</span>
+          <span class="flex items-center justify-center w-10 h-10 rounded-xl bg-white/20 group-hover:bg-white/30 transition" aria-hidden="true"><svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></span>
           <span class="hidden sm:inline">Portal de Documentos</span>
         </a>
         <div class="flex items-center gap-2 sm:gap-3">
@@ -291,14 +291,15 @@
       }
       var isPdf = doc.filePath && (doc.filePath.toLowerCase().endsWith('.pdf') || (doc.fileName && doc.fileName.toLowerCase().endsWith('.pdf')));
       if (!isPdf || !doc.filePath) return;
-      resultsEl.innerHTML = '<p class="text-slate-500">A extrair texto do PDF...</p>';
+      resultsEl.innerHTML = '<p class="text-slate-500">A extrair texto do PDF... (pode demorar em PDFs com muitas páginas)</p>';
       var filePath = docFileUrl(doc.filePath);
+      var pdfUrl = (filePath.indexOf('http') === 0) ? filePath : (window.location.origin + (filePath.charAt(0) === '/' ? filePath : '/' + filePath));
       if (typeof pdfjsLib === 'undefined') {
         resultsEl.innerHTML = '<p class="text-amber-600">Biblioteca PDF não carregada. Use o texto pré-definido (campo textContent) ou abra o PDF noutra janela.</p>';
         return;
       }
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      pdfjsLib.getDocument(filePath).promise.then(function(pdf) {
+      pdfjsLib.getDocument({ url: pdfUrl }).promise.then(function(pdf) {
         var numPages = pdf.numPages;
         var pages = [];
         var fullParts = [];
@@ -323,13 +324,13 @@
       }).catch(function(err) {
         var editLink = '#/docs/' + encodeURIComponent(docId) + '/edit';
         resultsEl.innerHTML = '<div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">' +
-          '<p class="font-semibold mb-2">Não foi possível ler o PDF a partir do ficheiro.</p>' +
-          '<p class="text-sm mb-3">Os browsers bloqueiam o acesso a ficheiros locais quando a página é aberta com <code class="bg-amber-200/80 px-1 rounded">file://</code>. Para a aplicação conseguir ler o PDF:</p>' +
+          '<p class="font-semibold mb-2">Não foi possível extrair o texto do PDF para pesquisar.</p>' +
+          '<p class="text-sm mb-3">Possíveis causas: página aberta com <code class="bg-amber-200/80 px-1 rounded">file://</code> (o browser bloqueia), ficheiro em falta no servidor (404) ou PDF protegido.</p>' +
           '<ol class="list-decimal list-inside text-sm space-y-1 mb-3">' +
-          '<li><strong>Recomendado:</strong> Abra a aplicação por um servidor local. Na pasta do projeto execute <code class="bg-amber-200/80 px-1 rounded">npx serve .</code> e aceda a <a href="http://localhost:3000" target="_blank" rel="noopener" class="text-indigo-600 underline font-medium">http://localhost:3000</a>.</li>' +
-          '<li><strong>Alternativa:</strong> Em <a href="' + editLink + '" class="text-indigo-600 underline font-medium">Editar documento</a>, preencha o campo &quot;Texto para pesquisa (textContent)&quot; com o texto do manual — assim a pesquisa no documento funciona mesmo sem servidor.</li>' +
-          '</ol>' +
-          '<p class="text-xs text-amber-800">Se já estiver a usar http://localhost, verifique se o ficheiro existe na raiz do projeto (mesma pasta do index.html) com o nome correto.</p></div>';
+          '<li><strong>Local:</strong> Use um servidor local (<code class="bg-amber-200/80 px-1 rounded">npx serve .</code>) e aceda a <a href="http://localhost:3000" target="_blank" rel="noopener" class="text-indigo-600 underline font-medium">http://localhost:3000</a>. O PDF tem de estar na raiz do projeto.</li>' +
+          '<li><strong>Vercel/deploy:</strong> Confirme que o PDF está na raiz do repositório e que o <code class="bg-amber-200/80 px-1 rounded">vercel.json</code> está a fazer deploy da raiz (sem build Vite).</li>' +
+          '<li><strong>Alternativa:</strong> Em <a href="' + editLink + '" class="text-indigo-600 underline font-medium">Editar documento</a>, preencha &quot;Texto para pesquisa (textContent)&quot; com o texto do manual — a pesquisa dentro do documento passará a usar esse texto.</li>' +
+          '</ol></div>';
       });
     }
 
@@ -369,30 +370,26 @@
       const results = searchDocuments(query, filters);
       const q = (query || '').trim();
       const countText = results.length + ' documento(s) encontrado(s)';
-      const gridHtml = '<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" id="searchResultsGrid">' +
-        results.map(d => {
+      const gridHtml = '<div class="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden" id="searchResultsGrid">' +
+        '<div class="overflow-x-auto">' +
+        '<table class="w-full text-sm text-left">' +
+        '<thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium">' +
+        '<tr><th class="py-3 px-4 w-0 whitespace-nowrap">Código</th><th class="py-3 px-4">Título</th><th class="py-3 px-4 w-0 hidden md:table-cell">Tipo</th><th class="py-3 px-4 w-0 hidden lg:table-cell">Estado</th><th class="py-3 px-4 w-0 hidden lg:table-cell">Depart.</th><th class="py-3 px-4 w-0 whitespace-nowrap">Atualizado</th><th class="py-3 px-4 w-10"></th></tr></thead><tbody>' +
+        results.map((d, i) => {
           const est = d.estado || d.status;
-          var cardAccent = (d.category === 'DSI') ? ' card-accent-dsi' : (d.category === 'EPPO') ? ' card-accent-eppo' : ' card-accent';
           var snippets = q.length >= 2 ? getContentSnippetsForDocument(d, q) : [];
-          var snippetsHtml = snippets.length > 0
-            ? '<div class="mt-4 pt-3 border-t border-slate-100"><p class="text-xs font-semibold text-slate-600 mb-2">Encontrado no conteúdo (parágrafos):</p><div class="space-y-2">' +
-              snippets.map(function(s) {
-                return '<div class="text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100"><p class="leading-relaxed">' + highlightSnippet(s.snippet, q) + '</p>' + (s.pageNum ? '<span class="text-xs text-slate-500">Página ' + s.pageNum + '</span>' : '') + '</div>';
-              }).join('') + '</div></div>'
-            : '';
-          return '<a href="#/docs/' + escapeHtml(d.id) + '" class="doc-card block bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 group' + cardAccent + '">' +
-            '<div class="flex items-start justify-between gap-3"><div class="min-w-0 flex-1">' +
-              '<span class="text-xs font-mono font-medium text-indigo-600">' + escapeHtml(d.id) + '</span>' +
-              '<span class="text-xs text-slate-400 ml-1.5">' + escapeHtml(d.tipo || '') + '</span>' +
-              '<h3 class="mt-2 font-semibold text-slate-800 group-hover:text-indigo-600 truncate text-lg leading-snug">' + escapeHtml(d.title) + '</h3>' +
-              '<p class="mt-1.5 text-sm text-slate-600 line-clamp-2">' + escapeHtml(d.description) + '</p>' +
-              '<div class="mt-3 flex flex-wrap gap-2">' + estadoBadge(est) + '<span class="text-xs text-slate-500">' + escapeHtml(d.version || '') + '</span>' +
-              (d.tags || []).slice(0, 5).map(t => '<span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs">' + escapeHtml(t) + '</span>').join('') + '</div></div><span class="text-indigo-400 group-hover:text-indigo-600 shrink-0 transition">→</span></div>' +
-            snippetsHtml +
-            '<div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500"><span class="font-medium">' + escapeHtml(d.author) + '</span><span>Atualizado: ' + escapeHtml(d.updatedAt) + '</span></div></a>';
+          var snip = snippets.length > 0 && snippets[0].snippet ? String(snippets[0].snippet).substring(0, 120) + (snippets[0].snippet.length > 120 ? '…' : '') : '';
+          var snippetLine = snip ? '<div class="text-xs text-slate-500 mt-0.5 line-clamp-1">' + highlightSnippet(snip, q) + '</div>' : '';
+          return '<tr class="border-b border-slate-100 hover:bg-slate-50/80"><td class="py-2.5 px-4 font-mono text-indigo-600 whitespace-nowrap">' + escapeHtml(d.id) + '</td>' +
+            '<td class="py-2.5 px-4"><a href="#/docs/' + escapeHtml(d.id) + '" class="font-medium text-slate-800 hover:text-indigo-600">' + escapeHtml(d.title) + '</a>' + snippetLine + '</td>' +
+            '<td class="py-2.5 px-4 text-slate-600 hidden md:table-cell">' + escapeHtml(d.tipo || '') + '</td>' +
+            '<td class="py-2.5 px-4 hidden lg:table-cell">' + estadoBadge(est) + '</td>' +
+            '<td class="py-2.5 px-4 text-slate-600 hidden lg:table-cell">' + escapeHtml(d.author || '') + '</td>' +
+            '<td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">' + escapeHtml(d.updatedAt) + '</td>' +
+            '<td class="py-2.5 px-4"><a href="#/docs/' + escapeHtml(d.id) + '" class="text-indigo-500 hover:text-indigo-600" aria-label="Abrir">→</a></td></tr>';
         }).join('') +
-        '</div>' +
-        (results.length === 0 ? '<div class="rounded-2xl border-2 border-dashed border-slate-200 bg-white/60 py-16 text-center text-slate-500 font-medium">Nenhum documento encontrado. Tente outros filtros ou termos.</div>' : '');
+        '</tbody></table></div></div>' +
+        (results.length === 0 ? '<div class="rounded-xl border-2 border-dashed border-slate-200 bg-white/60 py-12 text-center text-slate-500 font-medium">Nenhum documento encontrado. Tente outros filtros ou termos.</div>' : '');
       return { countText, gridHtml };
     }
 
@@ -401,9 +398,10 @@
       const { countText, gridHtml } = renderSearchResultsOnly(query, filters);
       const depList = getDepartamentos();
       return '<div class="space-y-6">' +
-        '<div class="mb-8">' +
-          '<h1 class="text-3xl font-bold text-slate-900 tracking-tight">Pesquisar documentos</h1>' +
-          '<p class="text-slate-600 mt-2 text-base">Pesquise por título, código, tipo, responsável, etiquetas ou <strong>dentro do texto dos documentos</strong> (quando tiverem texto associado). Os parágrafos onde o termo aparece são mostrados em cada cartão. Use os filtros para refinar.</p>' +
+        '<div class="flex items-center gap-4 mb-8">' +
+          '<span class="flex items-center justify-center w-14 h-14 rounded-xl bg-indigo-100 text-indigo-600 flex-shrink-0" aria-hidden="true"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></span>' +
+          '<div><h1 class="text-3xl font-bold text-slate-900 tracking-tight">Pesquisar documentos</h1>' +
+          '<p class="text-slate-600 mt-2 text-base">Pesquise por título, código, tipo, responsável, etiquetas ou <strong>dentro do texto dos documentos</strong>. Use os filtros para refinar. Os resultados aparecem em lista; quando o termo existe no conteúdo, é mostrada uma pré-visualização na linha.</p></div></div>' +
         '</div>' +
         '<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm search-hero p-4 sm:p-5 mb-6">' +
           '<div class="flex flex-col sm:flex-row gap-3 flex-wrap">' +
@@ -537,18 +535,22 @@
     function renderProcesses() {
       const list = getProcesses();
       return '<div class="space-y-6">' +
-        '<div class="mb-8"><h1 class="text-3xl font-bold text-slate-900 tracking-tight">Processos</h1><p class="text-slate-600 mt-2 text-base">Explore os processos e os documentos associados.</p></div>' +
-        '<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">' +
-          list.map(p => {
-            const c = CATEGORY_CLASS[p.category] || 'bg-slate-100 text-slate-700 border-slate-200';
-            return '<a href="#/processes/' + p.name + '" class="doc-card block bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 group card-accent">' +
-              '<div class="flex items-start justify-between gap-2"><div class="min-w-0 flex-1">' +
-                '<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ' + c + '">' + escapeHtml(p.category) + '</span>' +
-                '<h2 class="mt-4 font-semibold text-slate-800 group-hover:text-indigo-600 text-lg">' + escapeHtml(p.displayName) + '</h2>' +
-                '<p class="mt-1.5 text-sm text-slate-600 line-clamp-2">' + escapeHtml(p.description) + '</p>' +
-                '<p class="mt-3 text-sm font-medium text-slate-500">' + p.documentCount + ' documento(s)</p></div><span class="text-indigo-400 group-hover:text-indigo-600 shrink-0 transition">→</span></div></a>';
-          }).join('') +
-        '</div></div>';
+        '<div class="flex items-center gap-4 mb-8">' +
+          '<span class="flex items-center justify-center w-14 h-14 rounded-xl bg-indigo-100 text-indigo-600 flex-shrink-0" aria-hidden="true"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg></span>' +
+          '<div><h1 class="text-3xl font-bold text-slate-900 tracking-tight">Processos</h1><p class="text-slate-600 mt-2 text-base">Explore os processos e os documentos associados.</p></div></div>' +
+        '<div class="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden"><div class="overflow-x-auto">' +
+        '<table class="w-full text-sm text-left"><thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium">' +
+        '<tr><th class="py-3 px-4 w-0">Categoria</th><th class="py-3 px-4">Processo</th><th class="py-3 px-4 hidden md:table-cell">Descrição</th><th class="py-3 px-4 w-0 whitespace-nowrap">Documentos</th><th class="py-3 px-4 w-10"></th></tr></thead><tbody>' +
+        list.map(p => {
+          const c = CATEGORY_CLASS[p.category] || 'bg-slate-100 text-slate-700 border-slate-200';
+          return '<tr class="border-b border-slate-100 hover:bg-slate-50/80">' +
+            '<td class="py-2.5 px-4">' + '<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium border ' + c + '">' + escapeHtml(p.category) + '</span></td>' +
+            '<td class="py-2.5 px-4"><a href="#/processes/' + escapeHtml(p.name) + '" class="font-medium text-slate-800 hover:text-indigo-600">' + escapeHtml(p.displayName) + '</a></td>' +
+            '<td class="py-2.5 px-4 text-slate-600 hidden md:table-cell line-clamp-1">' + escapeHtml(p.description) + '</td>' +
+            '<td class="py-2.5 px-4 whitespace-nowrap text-slate-500">' + p.documentCount + '</td>' +
+            '<td class="py-2.5 px-4"><a href="#/processes/' + escapeHtml(p.name) + '" class="text-indigo-500 hover:text-indigo-600" aria-label="Abrir">→</a></td></tr>';
+        }).join('') +
+        '</tbody></table></div></div>';
     }
 
     function renderProcessDetail(processName) {
@@ -563,18 +565,19 @@
           '<div class="flex flex-wrap items-center gap-2 mb-2"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ' + catClass + '">' + escapeHtml(p.category) + '</span><span class="text-sm text-slate-500">' + p.documentCount + ' documento(s)</span></div>' +
           '<h1 class="text-2xl font-bold text-slate-900">' + escapeHtml(p.displayName) + '</h1><p class="mt-2 text-slate-600">' + escapeHtml(p.description) + '</p></div>' +
         '<div><h2 class="text-lg font-semibold text-slate-800 mb-4">Documentos do processo</h2>' +
-        '<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">' +
+        '<div class="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden"><div class="overflow-x-auto">' +
+        '<table class="w-full text-sm text-left"><thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium">' +
+        '<tr><th class="py-3 px-4 w-0 whitespace-nowrap">Código</th><th class="py-3 px-4">Título</th><th class="py-3 px-4 w-0 hidden md:table-cell">Estado</th><th class="py-3 px-4 w-0 whitespace-nowrap">Atualizado</th><th class="py-3 px-4 w-10"></th></tr></thead><tbody>' +
           docs.map(d => {
             const est = d.estado || d.status;
-            var cardAccent = (d.category === 'DSI') ? ' card-accent-dsi' : (d.category === 'EPPO') ? ' card-accent-eppo' : ' card-accent';
-            return '<a href="#/docs/' + d.id + '" class="doc-card block bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 group' + cardAccent + '">' +
-              '<div class="flex items-start justify-between gap-3"><div class="min-w-0 flex-1">' +
-                '<span class="text-xs font-mono font-medium text-indigo-600">' + escapeHtml(d.id) + '</span><h3 class="mt-2 font-semibold text-slate-800 group-hover:text-indigo-600 truncate">' + escapeHtml(d.title) + '</h3>' +
-                '<p class="mt-1.5 text-sm text-slate-600 line-clamp-2">' + escapeHtml(d.description) + '</p>' +
-                '<div class="mt-3 flex flex-wrap gap-2">' + estadoBadge(est) + '<span class="text-xs text-slate-500">' + escapeHtml(d.version || '') + '</span>' +
-                (d.tags || []).slice(0, 5).map(t => '<span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs">' + escapeHtml(t) + '</span>').join('') + '</div></div><span class="text-indigo-400 group-hover:text-indigo-600 shrink-0 transition">→</span></div>' +
-              '<div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500"><span class="font-medium">' + escapeHtml(d.author) + '</span><span>Atualizado: ' + escapeHtml(d.updatedAt) + '</span></div></a>';
-          }).join('') + '</div></div>' +
+            return '<tr class="border-b border-slate-100 hover:bg-slate-50/80">' +
+              '<td class="py-2.5 px-4 font-mono text-indigo-600 whitespace-nowrap">' + escapeHtml(d.id) + '</td>' +
+              '<td class="py-2.5 px-4"><a href="#/docs/' + escapeHtml(d.id) + '" class="font-medium text-slate-800 hover:text-indigo-600">' + escapeHtml(d.title) + '</a><div class="text-xs text-slate-500 mt-0.5 line-clamp-1">' + escapeHtml(d.description) + '</div></td>' +
+              '<td class="py-2.5 px-4 hidden md:table-cell">' + estadoBadge(est) + '</td>' +
+              '<td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">' + escapeHtml(d.updatedAt) + '</td>' +
+              '<td class="py-2.5 px-4"><a href="#/docs/' + escapeHtml(d.id) + '" class="text-indigo-500 hover:text-indigo-600" aria-label="Abrir">→</a></td></tr>';
+          }).join('') +
+        '</tbody></table></div></div></div>' +
         '<a href="#/processes" class="inline-flex items-center text-indigo-600 font-semibold hover:text-indigo-700 hover:underline">← Voltar a processos</a></div>';
     }
 
