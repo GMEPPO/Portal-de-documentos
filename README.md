@@ -75,6 +75,9 @@ Para que os documentos (PDF e .docx) funcionem no Vercel:
 2. **Nomes iguais ao código**  
    Os nomes dos ficheiros têm de coincidir exatamente com os `filePath` dos documentos no código (incluindo espaços e acentos).
 
+3. **Importante: `vercel.json` para não usar Vite**  
+   O repositório tem `package.json` e ficheiros do Vite (do projeto React antigo). Por defeito, o Vercel detecta isso e executa `npm run build`, fazendo deploy apenas da pasta `dist/` — e o `index.html` e os PDF/.docx da raiz **não são incluídos** (daí o 404). O ficheiro **`vercel.json`** está configurado com `"framework": null`, `"buildCommand": ""` e `"outputDirectory": "."` para que o Vercel trate o projeto como site estático e faça deploy de **toda a raiz** (index.html + documentos). Não remova nem altere o `vercel.json` se quiser que os documentos funcionem no Vercel.
+
 ## Estrutura
 
 - **index.html** — Tudo num só ficheiro: HTML, dados dos documentos e JavaScript. Abre e está pronto.
