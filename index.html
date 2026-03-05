@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal de Documentos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'] },
+          colors: {
+            primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' },
+            surface: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0' }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .doc-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .doc-card:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.12), 0 4px 8px -4px rgba(15, 23, 42, 0.06); }
+    .nav-link { transition: background 0.2s, color 0.2s; }
+    .search-hero { box-shadow: 0 4px 20px -4px rgba(99, 102, 241, 0.15); }
+    .header-bar { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #3730a3 100%); backdrop-filter: blur(12px); }
+    .btn-primary { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
+    .btn-primary:hover { background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4); }
+    .card-accent-dsi { border-left: 4px solid #3b82f6; }
+    .card-accent-eppo { border-left: 4px solid #f97316; }
+    .card-accent { border-left: 4px solid #6366f1; }
+    #perfilSelect option { background: #1e1b4b; color: #fff; padding: 6px 8px; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+  <div id="fileProtocolBanner" class="hidden bg-amber-500 text-amber-950 text-sm font-medium px-4 py-2 text-center shadow">
+    <span>Para poder <strong>ler e pesquisar dentro dos PDFs</strong>, abra a aplicação através de um servidor local em vez de <code class="bg-amber-600/30 px-1 rounded">file://</code>. Na pasta do projeto execute: <code class="bg-amber-600/30 px-1.5 py-0.5 rounded">npx serve .</code> ou <code class="bg-amber-600/30 px-1.5 py-0.5 rounded">python -m http.server 8080</code> e aceda a <strong>http://localhost:3000</strong> (ou 8080).
+  </div>
+  <header class="sticky top-0 z-50 header-bar text-white shadow-xl">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <a href="#/" class="flex items-center gap-3 font-semibold text-lg tracking-tight group">
+          <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg font-bold group-hover:bg-white/30 transition">D</span>
+          <span class="hidden sm:inline">Portal de Documentos</span>
+        </a>
+        <div class="flex items-center gap-2 sm:gap-3">
+          <nav class="flex gap-1">
+            <a href="#/" class="nav-link px-3 sm:px-4 py-2 rounded-xl text-sm font-medium text-indigo-100 hover:text-white hover:bg-white/10" data-path="/">Pesquisar</a>
+            <a href="#/processes" class="nav-link px-3 sm:px-4 py-2 rounded-xl text-sm font-medium text-indigo-100 hover:text-white hover:bg-white/10" data-path="/processes">Processos</a>
+            <a href="#/new" id="navNewDoc" class="nav-link px-3 sm:px-4 py-2 rounded-xl text-sm font-medium bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/25" data-path="new" style="display:none">+ Novo documento</a>
+          </nav>
+          <div class="flex flex-col items-end gap-0.5">
+            <select id="perfilSelect" class="text-sm rounded-xl bg-white/15 text-white px-3 py-2 border border-white/30 focus:ring-2 focus:ring-white/40 focus:outline-none cursor-pointer w-full min-w-[120px]" title="Perfil (simulado)">
+              <option value="Leitor">Leitor — Só consulta</option>
+              <option value="Revisor">Revisor — Rever e publicar</option>
+              <option value="Editor">Editor — Criar e editar</option>
+              <option value="Admin">Admin — Acesso total</option>
+            </select>
+            <span id="perfilInfo" class="text-xs text-indigo-200 whitespace-nowrap">Perfil atual: Leitor</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="app" class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Conteúdo injetado por JS -->
+  </main>
+
+  <script>
+    // ========== Fase 1 MVP: Tipos de Documento ==========
+    const DOCUMENT_TYPES = ['Acordo Comercial', 'Apresentação Institucional', 'Ata de Reunião', 'Comunicado Interno', 'Financeiro', 'Formulário de Pedido', 'Instrução de Trabalho', 'Nomenclatura', 'Procedimento Específico', 'Procedimento Geral', 'Processo', 'RH'];
+    const ESTADOS = ['Rascunho', 'Em revisão', 'Publicado', 'Obsoleto'];
+    const ESTADO_CLASS = { 'Rascunho': 'bg-slate-100 text-slate-700 border-slate-200', 'Em revisão': 'bg-amber-100 text-amber-800 border-amber-200', 'Publicado': 'bg-emerald-100 text-emerald-800 border-emerald-200', 'Obsoleto': 'bg-slate-200 text-slate-600 border-slate-300' };
+    const PERFIS = ['Admin', 'Editor', 'Revisor', 'Leitor'];
+    const CATEGORY_CLASS = { DSI: 'bg-blue-100 text-blue-800 border-blue-200', EPPO: 'bg-orange-100 text-orange-800 border-orange-200', Comerciais: 'bg-violet-100 text-violet-800 border-violet-200', RH: 'bg-pink-100 text-pink-800 border-pink-200', Finanças: 'bg-emerald-100 text-emerald-800 border-emerald-200', Legal: 'bg-amber-100 text-amber-800 border-amber-200', Operações: 'bg-sky-100 text-sky-800 border-sky-200', Qualidade: 'bg-teal-100 text-teal-800 border-teal-200' };
+    const DISPLAY_NAMES = { 'ticketbi-dsi': 'TicketBI (DSI)', 'eppo-web': 'Web EPPO', 'guias-preparacao': 'Guias de Preparação', 'pagamento-encomendas': 'Pagamento de Encomendas' };
+
+    const STORAGE_KEY = 'portal_docs';
+    const SEED = [
+      { id: 'IT-DSI-TICKETBI-V001', title: 'IT-DSI - Criar ticket no TicketBI', description: 'Instrução de trabalho para criar tickets no Power BI (TicketBI).', tipo: 'Instrução de Trabalho', author: 'DSI', createdAt: '2024-01-15', updatedAt: '2024-02-20', status: 'Publicado', estado: 'Publicado', processName: 'ticketbi-dsi', category: 'DSI', version: 'V001', tags: ['DSI', 'TicketBI', 'Power BI', 'Instrução de Trabalho'], fileName: 'IT-DSI- CRIAR TICKET NO TICKETBI-V001.docx', filePath: 'docs/IT-DSI- CRIAR TICKET NO TICKETBI-V001.docx', historicoVersoes: [{ versao: 'V001', data: '2024-02-20', responsavel: 'DSI' }], changelog: [{ data: '2024-02-20', utilizador: 'DSI', acao: 'Publicado' }], conteudo: { ficheiros: [], links: [], videos: [], imagens: [] }, textContent: 'Objetivo: Criar um ticket no sistema TicketBI para pedidos de reportação ou alterações.\n\nResponsável: Utilizador DSI ou Comercial com acesso ao Power BI.\n\nPassos:\n1. Aceder ao Power BI e abrir a aplicação TicketBI.\n2. Clicar em "Novo ticket" no menu.\n3. Preencher o formulário: título, descrição, prioridade e departamento.\n4. Associar o pedido a um processo ou projeto se aplicável.\n5. Submeter o ticket. O sistema atribui um código automático.\n\nNotas: Os tickets ficam visíveis na lista "Os meus tickets". O responsável DSI pode reatribuir ou encerrar.' },
+      { id: 'MA-EPPO-WEB-V000', title: 'Manual Web EPPO', description: 'Manual da aplicação Web EPPO. Pertence ao departamento EPPO e tem influência também nos comerciais.', tipo: 'Procedimento Geral', author: 'EPPO', createdAt: '2024-01-10', updatedAt: '2024-02-15', status: 'Publicado', estado: 'Publicado', processName: 'eppo-web', category: 'EPPO', version: 'V000', tags: ['EPPO', 'Comerciais', 'Manual', 'Web EPPO'], fileName: 'MA-EPPO-WEB EPPO-V000.pdf', filePath: 'docs/MA-EPPO-WEB EPPO-V000.pdf', historicoVersoes: [{ versao: 'V000', data: '2024-02-15', responsavel: 'EPPO' }], changelog: [{ data: '2024-02-15', utilizador: 'EPPO', acao: 'Publicado' }], conteudo: { ficheiros: [], links: [], videos: [], imagens: [] } },
+      { id: 'GUIAS-PREP-INFO-V001', title: 'Guias de Preparação - Informações para Documentos', description: 'Guias e informações para preparação e preenchimento de documentos.', tipo: 'Procedimento Geral', author: 'Operações', createdAt: '2024-02-01', updatedAt: '2024-02-20', status: 'Publicado', estado: 'Publicado', processName: 'guias-preparacao', category: 'Operações', version: 'V001', tags: ['Preparação', 'Documentos', 'Guias', 'Operações'], fileName: 'GUIAS DE PREPARAÇÃO - INFORMAÇÕES PARA DOCUMENTOS.docx', filePath: 'docs/GUIAS DE PREPARAÇÃO - INFORMAÇÕES PARA DOCUMENTOS.docx', historicoVersoes: [{ versao: 'V001', data: '2024-02-20', responsavel: 'Operações' }], changelog: [{ data: '2024-02-20', utilizador: 'Operações', acao: 'Publicado' }], conteudo: { ficheiros: [], links: [], videos: [], imagens: [] } },
+      { id: 'PAG-ENCOMENDAS-MB-FEV24-V001', title: 'Pagamento de Encomendas com Referências MB (Fev.24)', description: 'Procedimento de pagamento de encomendas com referências Multibanco.', tipo: 'Financeiro', author: 'Finanças', createdAt: '2024-02-01', updatedAt: '2024-02-15', status: 'Publicado', estado: 'Publicado', processName: 'pagamento-encomendas', category: 'Finanças', version: 'V001', tags: ['Pagamento', 'Encomendas', 'MB', 'Multibanco', 'Financeiro'], fileName: 'PAGAMENTO DE ENCOMENDAS COM REFERÊNCIAS MB (Fev.24).docx', filePath: 'docs/PAGAMENTO DE ENCOMENDAS COM REFERÊNCIAS MB (Fev.24).docx', historicoVersoes: [{ versao: 'V001', data: '2024-02-15', responsavel: 'Finanças' }], changelog: [{ data: '2024-02-15', utilizador: 'Finanças', acao: 'Publicado' }], conteudo: { ficheiros: [], links: [], videos: [], imagens: [] } }
+    ];
+
+    var docTextCache = {};
+
+    function loadDocuments() {
+      try {
+        const s = localStorage.getItem(STORAGE_KEY);
+        if (s) { const arr = JSON.parse(s); return Array.isArray(arr) && arr.length ? arr : SEED; }
+      } catch (e) {}
+      return SEED;
+    }
+    function saveDocuments() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(documents)); } catch (e) {} }
+
+    let documents = loadDocuments();
+
+    function getDocumentById(id) { return documents.find(d => d.id === id); }
+    function getDocumentsByProcess(name) { return documents.filter(d => d.processName === name); }
+    function getDepartamentos() { return [...new Set(documents.map(d => d.category).filter(Boolean))]; }
+    function getProcesses() {
+      const names = [...new Set(documents.map(d => d.processName).filter(Boolean))];
+      return names.map(name => {
+        const docs = documents.filter(d => d.processName === name);
+        return { name, displayName: DISPLAY_NAMES[name] || name, description: 'Processo ' + (DISPLAY_NAMES[name] || name) + '. ' + docs.length + ' documento(s).', documentCount: docs.length, category: docs[0]?.category || 'DSI' };
+      });
+    }
+
+    function searchDocuments(query, filters) {
+      const q = (query || '').toLowerCase().trim();
+      let list = documents;
+      if (filters && (filters.tipo || filters.estado || filters.departamento)) {
+        if (filters.tipo) list = list.filter(d => (d.tipo || d.category) === filters.tipo);
+        if (filters.estado) list = list.filter(d => (d.estado || d.status) === filters.estado);
+        if (filters.departamento) list = list.filter(d => d.category === filters.departamento);
+      }
+      if (!q) return list;
+      return list.filter(d => {
+        var metaMatch = (d.title || '').toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q) ||
+          (d.author || '').toLowerCase().includes(q) || (d.tags || []).some(t => t.toLowerCase().includes(q)) ||
+          (d.id || '').toLowerCase().includes(q) || (d.tipo || '').toLowerCase().includes(q);
+        var contentMatch = (d.textContent && d.textContent.length > 0 && d.textContent.toLowerCase().includes(q));
+        return metaMatch || contentMatch;
+      });
+    }
+
+    function getContentSnippetsForDocument(doc, query) {
+      if (!doc || !doc.textContent || !query || query.trim().length < 2) return [];
+      var snippets = searchWithinDocumentText(doc.textContent, query, null);
+      return snippets.slice(0, 5);
+    }
+
+    function getPerfil() { return sessionStorage.getItem('portal_perfil') || 'Leitor'; }
+    function setPerfil(p) { sessionStorage.setItem('portal_perfil', p); }
+    function canCreate() { const p = getPerfil(); return p === 'Admin' || p === 'Editor'; }
+    function canEdit() { const p = getPerfil(); return p === 'Admin' || p === 'Editor'; }
+    function canDelete() { const p = getPerfil(); return p === 'Admin' || p === 'Editor'; }
+    function canPublish() { const p = getPerfil(); return p === 'Admin' || p === 'Revisor' || p === 'Editor'; }
+
+    function addChangelogEntry(id, acao) {
+      const doc = getDocumentById(id);
+      if (!doc) return;
+      doc.changelog = doc.changelog || [];
+      doc.changelog.unshift({ data: new Date().toISOString().slice(0, 10), utilizador: getPerfil(), acao });
+      doc.updatedAt = doc.changelog[0].data;
+      saveDocuments();
+    }
+    function createNewVersion(id) {
+      const doc = getDocumentById(id);
+      if (!doc) return null;
+      const nextVer = 'V' + String(parseInt((doc.version || '0').replace(/\D/g, '') || 0) + 1).padStart(3, '0');
+      const newId = (doc.id.replace(/-V\d+$/, '') || doc.id) + '-' + nextVer;
+      const copy = JSON.parse(JSON.stringify(doc));
+      copy.id = newId;
+      copy.version = nextVer;
+      copy.estado = 'Rascunho';
+      copy.status = 'Rascunho';
+      copy.updatedAt = new Date().toISOString().slice(0, 10);
+      copy.changelog = [{ data: copy.updatedAt, utilizador: getPerfil(), acao: 'Nova versão criada' }];
+      copy.historicoVersoes = (doc.historicoVersoes || []).concat([{ versao: nextVer, data: copy.updatedAt, responsavel: getPerfil() }]);
+      documents.push(copy);
+      saveDocuments();
+      addChangelogEntry(id, 'Versão ' + nextVer + ' criada');
+      return newId;
+    }
+    function deleteDocument(id) { documents = documents.filter(d => d.id !== id); saveDocuments(); }
+    function updateDocument(id, data) {
+      const i = documents.findIndex(d => d.id === id);
+      if (i < 0) return false;
+      const doc = documents[i];
+      Object.assign(doc, data);
+      doc.updatedAt = new Date().toISOString().slice(0, 10);
+      doc.changelog = doc.changelog || [];
+      doc.changelog.unshift({ data: doc.updatedAt, utilizador: getPerfil(), acao: 'Edição' });
+      saveDocuments();
+      return true;
+    }
+    function createDocument(data) {
+      const id = (data.codigo || data.id || 'DOC-' + Date.now()).trim() || 'DOC-' + Date.now();
+      if (getDocumentById(id)) return null;
+      const doc = {
+        id, title: data.title || '', description: data.description || '', tipo: data.tipo || DOCUMENT_TYPES[0], author: data.author || data.responsavel || '', createdAt: new Date().toISOString().slice(0, 10), updatedAt: new Date().toISOString().slice(0, 10), status: data.estado || 'Rascunho', estado: data.estado || 'Rascunho', processName: data.processName || '', category: data.category || data.departamento || '', version: data.version || 'V001', tags: Array.isArray(data.tags) ? data.tags : (data.tags || '').split(/[,;]/).map(t => t.trim()).filter(Boolean), fileName: data.fileName || '', filePath: data.filePath || '', textContent: data.textContent || '', historicoVersoes: [{ versao: data.version || 'V001', data: new Date().toISOString().slice(0, 10), responsavel: data.author || getPerfil() }], changelog: [{ data: new Date().toISOString().slice(0, 10), utilizador: getPerfil(), acao: 'Criação' }], conteudo: data.conteudo || { ficheiros: [], links: [], videos: [], imagens: [] }
+      };
+      documents.push(doc);
+      saveDocuments();
+      return id;
+    }
+
+    function escapeHtml(s) { if (s == null) return ''; const div = document.createElement('div'); div.textContent = s; return div.innerHTML; }
+
+    function searchWithinDocumentText(fullText, query, pages) {
+      if (!query || query.trim().length < 2) return [];
+      var q = query.trim().toLowerCase();
+      var results = [];
+      if (pages && pages.length > 0) {
+        for (var p = 0; p < pages.length; p++) {
+          var pageText = pages[p].text || '';
+          var pageNum = pages[p].pageNum;
+          var paras = pageText.split(/\n\n+/).map(function(s) { return s.replace(/\n/g, ' ').trim(); }).filter(Boolean);
+          for (var i = 0; i < paras.length; i++) {
+            if (paras[i].toLowerCase().indexOf(q) === -1) continue;
+            results.push({ snippet: paras[i], pageNum: pageNum });
+            if (results.length >= 25) return results;
+          }
+          if (paras.length === 0) {
+            var lines = pageText.split(/\n/).map(function(l) { return l.trim(); }).filter(Boolean);
+            for (var j = 0; j < lines.length; j++) {
+              if (lines[j].toLowerCase().indexOf(q) === -1) continue;
+              results.push({ snippet: lines[j], pageNum: pageNum });
+              if (results.length >= 25) return results;
+            }
+          }
+        }
+        return results;
+      }
+      if (!fullText) return [];
+      var paragraphs = fullText.split(/\n\n+/).map(function(p) { return p.replace(/\n/g, ' ').trim(); }).filter(Boolean);
+      for (var i = 0; i < paragraphs.length; i++) {
+        if (paragraphs[i].toLowerCase().indexOf(q) === -1) continue;
+        results.push({ snippet: paragraphs[i], pageNum: null });
+        if (results.length >= 25) break;
+      }
+      if (results.length === 0) {
+        var lines = fullText.split(/\n/).map(function(l) { return l.trim(); }).filter(Boolean);
+        for (var j = 0; j < lines.length; j++) {
+          if (lines[j].toLowerCase().indexOf(q) === -1) continue;
+          results.push({ snippet: lines[j], pageNum: null });
+          if (results.length >= 25) break;
+        }
+      }
+      return results;
+    }
+
+    function highlightSnippet(snippet, query) {
+      if (!query || query.length < 2) return escapeHtml(snippet);
+      var re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+') + ')', 'gi');
+      return escapeHtml(snippet).replace(re, '<mark class="bg-amber-200 text-slate-900 rounded px-0.5">$1</mark>');
+    }
+
+    function renderDocSearchResults(docId, query) {
+      var el = document.getElementById('docSearchResults');
+      if (!el) return;
+      var data = docTextCache[docId];
+      if (!data || !data.fullText) {
+        el.innerHTML = '<p class="text-slate-500">A carregar texto do documento...</p>';
+        return;
+      }
+      if (!query || query.trim().length < 2) {
+        el.innerHTML = '<p class="text-slate-500">Escreva pelo menos 2 caracteres para pesquisar no documento.</p>';
+        return;
+      }
+      var results = searchWithinDocumentText(data.fullText, query, data.pages);
+      if (results.length === 0) {
+        el.innerHTML = '<p class="text-slate-500">Nenhum resultado encontrado para &quot;' + escapeHtml(query) + '&quot;.</p>';
+        return;
+      }
+      el.innerHTML = '<p class="text-slate-600 font-medium mb-2">' + results.length + ' resultado(s):</p>' +
+        results.map(function(r) {
+          return '<div class="p-3 rounded-lg bg-slate-50 border border-slate-100 text-slate-700">' +
+            (r.pageNum ? '<span class="text-xs text-slate-500 block mb-1">Página ' + r.pageNum + '</span>' : '') +
+            '<p class="leading-relaxed">' + highlightSnippet(r.snippet, query) + '</p></div>';
+        }).join('');
+    }
+
+    function initDocumentSearch(docId) {
+      var doc = getDocumentById(docId);
+      if (!doc) return;
+      var input = document.getElementById('docSearchInput');
+      var resultsEl = document.getElementById('docSearchResults');
+      if (!input || !resultsEl) return;
+      if (doc.textContent && doc.textContent.length > 0) {
+        docTextCache[docId] = { fullText: doc.textContent, pages: [] };
+        resultsEl.innerHTML = '<p class="text-slate-500">Escreva acima para pesquisar no texto do documento.</p>';
+        input.addEventListener('input', function() { renderDocSearchResults(docId, this.value); });
+        input.addEventListener('keyup', function() { renderDocSearchResults(docId, this.value); });
+        return;
+      }
+      var isPdf = doc.filePath && (doc.filePath.toLowerCase().endsWith('.pdf') || (doc.fileName && doc.fileName.toLowerCase().endsWith('.pdf')));
+      if (!isPdf || !doc.filePath) return;
+      resultsEl.innerHTML = '<p class="text-slate-500">A extrair texto do PDF...</p>';
+      var filePath = doc.filePath.replace(/ /g, '%20');
+      if (typeof pdfjsLib === 'undefined') {
+        resultsEl.innerHTML = '<p class="text-amber-600">Biblioteca PDF não carregada. Use o texto pré-definido (campo textContent) ou abra o PDF noutra janela.</p>';
+        return;
+      }
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      pdfjsLib.getDocument(filePath).promise.then(function(pdf) {
+        var numPages = pdf.numPages;
+        var pages = [];
+        var fullParts = [];
+        function next(pageNum) {
+          if (pageNum > numPages) {
+            docTextCache[docId] = { fullText: fullParts.join('\n\n'), pages: pages };
+            resultsEl.innerHTML = '<p class="text-slate-500">Escreva acima para pesquisar no texto do documento.</p>';
+            input.addEventListener('input', function() { renderDocSearchResults(docId, this.value); });
+            input.addEventListener('keyup', function() { renderDocSearchResults(docId, this.value); });
+            return;
+          }
+          pdf.getPage(pageNum).then(function(page) {
+            return page.getTextContent();
+          }).then(function(content) {
+            var text = content.items.map(function(item) { return item.str; }).join(' ');
+            pages.push({ pageNum: pageNum, text: text });
+            fullParts.push('--- Página ' + pageNum + ' ---\n' + text);
+            next(pageNum + 1);
+          }).catch(function() { next(pageNum + 1); });
+        }
+        next(1);
+      }).catch(function(err) {
+        var editLink = '#/docs/' + encodeURIComponent(docId) + '/edit';
+        resultsEl.innerHTML = '<div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">' +
+          '<p class="font-semibold mb-2">Não foi possível ler o PDF a partir do ficheiro.</p>' +
+          '<p class="text-sm mb-3">Os browsers bloqueiam o acesso a ficheiros locais quando a página é aberta com <code class="bg-amber-200/80 px-1 rounded">file://</code>. Para a aplicação conseguir ler o PDF:</p>' +
+          '<ol class="list-decimal list-inside text-sm space-y-1 mb-3">' +
+          '<li><strong>Recomendado:</strong> Abra a aplicação por um servidor local. Na pasta do projeto execute <code class="bg-amber-200/80 px-1 rounded">npx serve .</code> e aceda a <a href="http://localhost:3000" target="_blank" rel="noopener" class="text-indigo-600 underline font-medium">http://localhost:3000</a>.</li>' +
+          '<li><strong>Alternativa:</strong> Em <a href="' + editLink + '" class="text-indigo-600 underline font-medium">Editar documento</a>, preencha o campo &quot;Texto para pesquisa (textContent)&quot; com o texto do manual — assim a pesquisa no documento funciona mesmo sem servidor.</li>' +
+          '</ol>' +
+          '<p class="text-xs text-amber-800">Se já estiver a usar http://localhost, verifique se o ficheiro existe em <code class="bg-amber-200/80 px-1 rounded">docs/</code> com o nome correto.</p></div>';
+      });
+    }
+
+    function initDocxPreview() {
+      var btn = document.getElementById('btnDocxPreview');
+      var contentEl = document.getElementById('docxPreviewContent');
+      if (!btn || !contentEl) return;
+      if (btn._docxBound) return;
+      btn._docxBound = true;
+      btn.addEventListener('click', function() {
+        var filePath = (this.getAttribute('data-filepath') || '').replace(/ /g, '%20');
+        if (!filePath) return;
+        contentEl.style.display = 'block';
+        contentEl.innerHTML = '<p class="text-slate-500">A carregar...</p>';
+        btn.disabled = true;
+        fetch(filePath).then(function(res) { return res.arrayBuffer(); }).then(function(arrayBuffer) {
+          if (typeof mammoth !== 'undefined') {
+            return mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+          }
+          throw new Error('Mammoth não carregado');
+        }).then(function(result) {
+          contentEl.innerHTML = result.value;
+          if (result.messages && result.messages.length) console.warn('Mammoth:', result.messages);
+        }).catch(function(err) {
+          contentEl.innerHTML = '<p class="text-amber-700">Não foi possível carregar o documento Word. Abra a aplicação por um servidor local (ex.: <code class="bg-amber-200 px-1 rounded">npx serve .</code>) e coloque o ficheiro .docx na pasta <code class="bg-amber-200 px-1 rounded">docs/</code>.</p>';
+        }).finally(function() { btn.disabled = false; });
+      });
+    }
+
+    function estadoBadge(estado) {
+      const e = estado || 'Rascunho';
+      const c = ESTADO_CLASS[e] || ESTADO_CLASS['Rascunho'];
+      return '<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ' + c + '">' + escapeHtml(e) + '</span>';
+    }
+
+    function renderSearchResultsOnly(query, filters) {
+      const results = searchDocuments(query, filters);
+      const q = (query || '').trim();
+      const countText = results.length + ' documento(s) encontrado(s)';
+      const gridHtml = '<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" id="searchResultsGrid">' +
+        results.map(d => {
+          const est = d.estado || d.status;
+          var cardAccent = (d.category === 'DSI') ? ' card-accent-dsi' : (d.category === 'EPPO') ? ' card-accent-eppo' : ' card-accent';
+          var snippets = q.length >= 2 ? getContentSnippetsForDocument(d, q) : [];
+          var snippetsHtml = snippets.length > 0
+            ? '<div class="mt-4 pt-3 border-t border-slate-100"><p class="text-xs font-semibold text-slate-600 mb-2">Encontrado no conteúdo (parágrafos):</p><div class="space-y-2">' +
+              snippets.map(function(s) {
+                return '<div class="text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100"><p class="leading-relaxed">' + highlightSnippet(s.snippet, q) + '</p>' + (s.pageNum ? '<span class="text-xs text-slate-500">Página ' + s.pageNum + '</span>' : '') + '</div>';
+              }).join('') + '</div></div>'
+            : '';
+          return '<a href="#/docs/' + escapeHtml(d.id) + '" class="doc-card block bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 group' + cardAccent + '">' +
+            '<div class="flex items-start justify-between gap-3"><div class="min-w-0 flex-1">' +
+              '<span class="text-xs font-mono font-medium text-indigo-600">' + escapeHtml(d.id) + '</span>' +
+              '<span class="text-xs text-slate-400 ml-1.5">' + escapeHtml(d.tipo || '') + '</span>' +
+              '<h3 class="mt-2 font-semibold text-slate-800 group-hover:text-indigo-600 truncate text-lg leading-snug">' + escapeHtml(d.title) + '</h3>' +
+              '<p class="mt-1.5 text-sm text-slate-600 line-clamp-2">' + escapeHtml(d.description) + '</p>' +
+              '<div class="mt-3 flex flex-wrap gap-2">' + estadoBadge(est) + '<span class="text-xs text-slate-500">' + escapeHtml(d.version || '') + '</span>' +
+              (d.tags || []).slice(0, 5).map(t => '<span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs">' + escapeHtml(t) + '</span>').join('') + '</div></div><span class="text-indigo-400 group-hover:text-indigo-600 shrink-0 transition">→</span></div>' +
+            snippetsHtml +
+            '<div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500"><span class="font-medium">' + escapeHtml(d.author) + '</span><span>Atualizado: ' + escapeHtml(d.updatedAt) + '</span></div></a>';
+        }).join('') +
+        '</div>' +
+        (results.length === 0 ? '<div class="rounded-2xl border-2 border-dashed border-slate-200 bg-white/60 py-16 text-center text-slate-500 font-medium">Nenhum documento encontrado. Tente outros filtros ou termos.</div>' : '');
+      return { countText, gridHtml };
+    }
+
+    function renderSearch(query, filters) {
+      filters = filters || {};
+      const { countText, gridHtml } = renderSearchResultsOnly(query, filters);
+      const depList = getDepartamentos();
+      return '<div class="space-y-6">' +
+        '<div class="mb-8">' +
+          '<h1 class="text-3xl font-bold text-slate-900 tracking-tight">Pesquisar documentos</h1>' +
+          '<p class="text-slate-600 mt-2 text-base">Pesquise por título, código, tipo, responsável, etiquetas ou <strong>dentro do texto dos documentos</strong> (quando tiverem texto associado). Os parágrafos onde o termo aparece são mostrados em cada cartão. Use os filtros para refinar.</p>' +
+        '</div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm search-hero p-4 sm:p-5 mb-6">' +
+          '<div class="flex flex-col sm:flex-row gap-3 flex-wrap">' +
+            '<div class="relative flex-1 min-w-[200px]">' +
+              '<input type="search" id="searchInput" dir="ltr" autocomplete="off" placeholder="Escreva para pesquisar..." value="' + escapeHtml(query || '') + '" class="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-3.5 pl-4 pr-12 text-slate-800 placeholder-slate-400 focus:bg-white focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/20 outline-none transition text-base" style="direction:ltr">' +
+              '<span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">🔍</span>' +
+            '</div>' +
+            '<select id="filterTipo" class="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-slate-800 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300">' +
+              '<option value="">Todos os tipos</option>' + DOCUMENT_TYPES.map(t => '<option value="' + escapeHtml(t) + '"' + (filters.tipo === t ? ' selected' : '') + '>' + escapeHtml(t) + '</option>').join('') +
+            '</select>' +
+            '<select id="filterEstado" class="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-slate-800 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300">' +
+              '<option value="">Todos os estados</option>' + ESTADOS.map(e => '<option value="' + escapeHtml(e) + '"' + (filters.estado === e ? ' selected' : '') + '>' + escapeHtml(e) + '</option>').join('') +
+            '</select>' +
+            '<select id="filterDepartamento" class="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-slate-800 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300">' +
+              '<option value="">Todos os departamentos</option>' + depList.map(d => '<option value="' + escapeHtml(d) + '"' + (filters.departamento === d ? ' selected' : '') + '>' + escapeHtml(d) + '</option>').join('') +
+            '</select>' +
+          '</div>' +
+        '</div>' +
+        '<p class="text-sm font-medium text-slate-600 mb-4" id="searchCount">' + countText + '</p>' +
+        '<div id="searchResultsWrap">' + gridHtml + '</div>' +
+      '</div>';
+    }
+
+    function renderDocDetail(id) {
+      const doc = getDocumentById(id);
+      if (!doc) return '<div class="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-800"><p class="font-medium">Documento não encontrado</p><a href="#/" class="mt-4 inline-block text-indigo-600 font-semibold hover:underline">← Voltar à pesquisa</a></div>';
+      const est = doc.estado || doc.status;
+      const catClass = CATEGORY_CLASS[doc.category] || 'bg-slate-100 text-slate-700 border-slate-200';
+      const fileName = doc.fileName ? '<div class="mt-2 text-sm text-slate-500">Ficheiro: ' + escapeHtml(doc.fileName) + '</div>' : '';
+      const filePathEscaped = doc.filePath ? doc.filePath.replace(/ /g, '%20') : '';
+      const isPdf = doc.filePath && (doc.filePath.toLowerCase().endsWith('.pdf') || (doc.fileName && doc.fileName.toLowerCase().endsWith('.pdf')));
+      const isDocx = doc.filePath && (doc.filePath.toLowerCase().endsWith('.docx') || (doc.fileName && doc.fileName.toLowerCase().endsWith('.docx')));
+      let viewDownloadSection = '';
+      if (doc.filePath) {
+        viewDownloadSection = '<div class="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-200">' +
+          '<h3 class="text-sm font-semibold text-slate-800 mb-3">' + (isPdf ? 'Ler ou descarregar manual' : 'Abrir ou descarregar documento') + '</h3>' +
+          '<div class="flex flex-wrap gap-3">' +
+            '<a href="' + filePathEscaped + '" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl btn-primary text-white font-medium transition">📄 ' + (isPdf ? 'Abrir manual (nova janela)' : 'Abrir documento (nova janela)') + '</a>' +
+            '<a href="' + filePathEscaped + '" download class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-200 text-slate-800 font-medium hover:bg-slate-300 transition">⬇ Descarregar</a>' +
+          '</div>' +
+          (isPdf ? ('<p class="text-sm text-slate-600 mb-2 mt-4">Ou leia aqui:</p><iframe id="pdfIframe" src="' + filePathEscaped + '#toolbar=1" class="w-full rounded-lg border border-slate-200 bg-white" style="height: 70vh; min-height: 400px;" title="Manual PDF"></iframe>') : '') +
+          (isDocx ? ('<div class="mt-4 pt-4 border-t border-slate-200"><h4 class="text-sm font-semibold text-slate-800 mb-2">Previsualizar documento Word</h4><p class="text-xs text-slate-600 mb-2">Clique para carregar e ver o conteúdo do ficheiro .docx aqui. (Requer que a aplicação seja aberta por um servidor local, ex.: <code class="bg-slate-200 px-1 rounded">npx serve .</code>)</p><button type="button" id="btnDocxPreview" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition" data-filepath="' + escapeHtml(doc.filePath) + '">Mostrar previsualização</button><div id="docxPreviewContent" class="mt-4 w-full rounded-lg border border-slate-200 bg-white p-6 prose prose-slate max-w-none overflow-auto" style="max-height: 70vh; min-height: 200px; display: none;"></div></div>') : '') +
+        '</div>';
+      }
+      var canSearchInDoc = isPdf || (doc.textContent && doc.textContent.length > 0);
+      var searchInDocSection = '';
+      if (canSearchInDoc) {
+        searchInDocSection = '<div class="mt-6 p-4 rounded-xl bg-white border border-slate-200 shadow-sm">' +
+          '<h3 class="text-sm font-semibold text-slate-800 mb-2">Buscar neste documento</h3>' +
+          '<p class="text-xs text-slate-500 mb-3">Pesquise por palavras no texto do documento. Os parágrafos onde aparecem serão mostrados em baixo.</p>' +
+          '<div class="relative mb-4">' +
+            '<input type="text" id="docSearchInput" dir="ltr" placeholder="Escreva uma palavra ou expressão..." class="w-full rounded-xl border border-slate-200 px-4 py-2.5 pr-10 text-slate-800 placeholder-slate-400 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/20 outline-none">' +
+            '<span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>' +
+          '</div>' +
+          '<div id="docSearchResults" class="space-y-2 text-sm text-slate-600 max-h-80 overflow-y-auto"></div>' +
+        '</div>';
+      }
+      const conteudo = doc.conteudo || {};
+      const links = (conteudo.links || []).filter(Boolean);
+      const videos = (conteudo.videos || []).filter(Boolean);
+      const imagens = (conteudo.imagens || []).filter(Boolean);
+      let conteudoSection = '';
+      if (links.length || videos.length || imagens.length) {
+        conteudoSection = '<div class="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-200">' +
+          '<h3 class="text-sm font-semibold text-slate-800 mb-3">Conteúdo associado</h3>' +
+          (links.length ? '<p class="text-xs text-slate-500 mb-1">Links</p><ul class="list-disc pl-5 mb-3">' + links.map(l => '<li><a href="' + escapeHtml(l) + '" target="_blank" rel="noopener" class="text-indigo-600 hover:underline font-medium">' + escapeHtml(l) + '</a></li>').join('') + '</ul>' : '') +
+          (videos.length ? '<p class="text-xs text-slate-500 mb-1">Vídeos</p><ul class="list-disc pl-5 mb-3">' + videos.map(v => '<li><a href="' + escapeHtml(v) + '" target="_blank" rel="noopener" class="text-indigo-600 hover:underline font-medium">Abrir vídeo</a></li>').join('') + '</ul>' : '') +
+          (imagens.length ? '<p class="text-xs text-slate-500 mb-1">Imagens</p><div class="flex gap-2 flex-wrap">' + imagens.slice(0, 6).map(img => '<a href="' + escapeHtml(img) + '" target="_blank" rel="noopener"><img src="' + escapeHtml(img) + '" alt="" class="w-20 h-20 object-cover rounded border border-slate-200"/></a>').join('') + '</div>' : '') +
+        '</div>';
+      }
+      const historico = (doc.historicoVersoes || []).slice(0, 10);
+      const changelog = (doc.changelog || []).slice(0, 15);
+      let versionamentoSection = '<div class="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-200">' +
+        '<h3 class="text-sm font-semibold text-slate-800 mb-2">Histórico de versões</h3>' +
+        (historico.length ? '<ul class="text-sm text-slate-600 space-y-1">' + historico.map(h => '<li>' + escapeHtml(h.versao) + ' — ' + escapeHtml(h.data) + ' (' + escapeHtml(h.responsavel) + ')</li>').join('') + '</ul>' : '<p class="text-sm text-slate-500">Sem histórico.</p>') +
+      '</div>';
+      let changelogSection = '<div class="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200">' +
+        '<h3 class="text-sm font-semibold text-slate-800 mb-2">Log de alterações</h3>' +
+        (changelog.length ? '<ul class="text-sm text-slate-600 space-y-1">' + changelog.map(c => '<li>' + escapeHtml(c.data) + ' — ' + escapeHtml(c.utilizador) + ': ' + escapeHtml(c.acao) + '</li>').join('') + '</ul>' : '<p class="text-sm text-slate-500">Sem registo.</p>') +
+      '</div>';
+      let actions = '<div class="flex flex-wrap gap-3">' +
+        '<a href="#/processes/' + escapeHtml(doc.processName) + '" class="inline-flex items-center px-4 py-2 rounded-lg bg-slate-200 text-slate-800 font-medium hover:bg-slate-300 transition">Ver processo</a>' +
+        '<a href="#/" class="inline-flex items-center px-4 py-2 rounded-xl btn-primary text-white font-medium text-white transition">Pesquisar mais documentos</a>';
+      if (canEdit()) actions += ' <a href="#/docs/' + escapeHtml(doc.id) + '/edit" class="inline-flex items-center px-4 py-2 rounded-lg bg-amber-500 text-white font-medium hover:bg-amber-600 transition">Editar</a>';
+      if (canDelete()) actions += ' <button type="button" id="btnDeleteDoc" data-id="' + escapeHtml(doc.id) + '" class="inline-flex items-center px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition">Eliminar</button>';
+      if (canPublish() && est !== 'Publicado') actions += ' <button type="button" id="btnPublishDoc" data-id="' + escapeHtml(doc.id) + '" class="inline-flex items-center px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition">Publicar</button>';
+      if (canEdit()) actions += ' <button type="button" id="btnNewVersion" data-id="' + escapeHtml(doc.id) + '" class="inline-flex items-center px-4 py-2 rounded-lg bg-sky-600 text-white font-medium hover:bg-sky-700 transition">Criar nova versão</button>';
+      actions += '</div>';
+
+      return '<div class="space-y-6">' +
+        '<div class="flex items-center gap-2 text-sm text-slate-500"><a href="#/" class="hover:text-indigo-600 font-medium">Pesquisar</a><span>/</span><a href="#/processes" class="hover:text-indigo-600 font-medium">Processos</a><span>/</span><a href="#/processes/' + escapeHtml(doc.processName) + '" class="hover:text-indigo-600 font-medium">' + escapeHtml(doc.processName) + '</a><span>/</span><span class="text-slate-700 font-medium">' + escapeHtml(doc.id) + '</span></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">' +
+          '<div class="p-6 sm:p-8 border-b border-slate-100">' +
+            '<div class="flex flex-wrap items-center gap-2 mb-2"><span class="font-mono text-sm text-slate-500">' + escapeHtml(doc.id) + '</span>' + estadoBadge(est) + '<span class="text-sm text-slate-500">' + escapeHtml(doc.tipo || '') + ' · Versão ' + escapeHtml(doc.version || '') + '</span></div>' +
+            '<h1 class="text-2xl font-bold text-slate-900">' + escapeHtml(doc.title) + '</h1><p class="mt-2 text-slate-600">' + escapeHtml(doc.description) + '</p>' +
+            fileName +
+            '<div class="mt-4 flex flex-wrap gap-2">' + (doc.tags || []).map(t => '<span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-sm">' + escapeHtml(t) + '</span>').join('') + '</div></div>' +
+          '<dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">' +
+            '<div class="p-4 sm:p-6"><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Responsável</dt><dd class="mt-1 font-medium text-slate-800">' + escapeHtml(doc.author) + '</dd></div>' +
+            '<div class="p-4 sm:p-6"><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Processo</dt><dd class="mt-1"><a href="#/processes/' + escapeHtml(doc.processName) + '" class="font-medium text-blue-600 hover:underline">' + escapeHtml(doc.processName) + '</a></dd></div>' +
+            '<div class="p-4 sm:p-6"><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Departamento</dt><dd class="mt-1 font-medium text-slate-800">' + escapeHtml(doc.category) + '</dd></div>' +
+            '<div class="p-4 sm:p-6"><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Data revisão</dt><dd class="mt-1 font-medium text-slate-800">' + escapeHtml(doc.updatedAt) + '</dd></div></dl>' +
+          '<div class="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100"><span class="text-sm text-slate-500">Data de criação: ' + escapeHtml(doc.createdAt) + '</span></div></div>' +
+        viewDownloadSection + searchInDocSection + conteudoSection + versionamentoSection + changelogSection +
+        actions + '</div>';
+    }
+
+    function renderDocForm(doc, isEdit) {
+      const d = doc || {};
+      const departamentos = getDepartamentos();
+      const processes = getProcesses();
+      return '<div class="space-y-6 max-w-2xl">' +
+        '<h1 class="text-2xl font-bold text-slate-900">' + (isEdit ? 'Editar documento' : 'Novo documento') + '</h1>' +
+        '<form id="docForm" class="space-y-4 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">' +
+          '<div><label class="block text-sm font-medium text-slate-700 mb-1">Título *</label><input type="text" name="title" required value="' + escapeHtml(d.title || '') + '" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"></div>' +
+          '<div><label class="block text-sm font-medium text-slate-700 mb-1">Código *</label><input type="text" name="id" required value="' + escapeHtml(d.id || '') + '" class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-slate-800" placeholder="ex: IT-DSI-001-V001"' + (isEdit ? ' readonly' : '') + '></div>' +
+          '<div><label class="block text-sm font-medium text-slate-700 mb-1">Tipo de documento</label><select name="tipo" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800">' + DOCUMENT_TYPES.map(t => '<option value="' + escapeHtml(t) + '"' + (d.tipo === t ? ' selected' : '') + '>' + escapeHtml(t) + '</option>').join('') + '</select></div>' +
+          '<div><label class="block text-sm font-medium text-slate-700 mb-1">Descrição</label><textarea name="description" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800">' + escapeHtml(d.description || '') + '</textarea></div>' +
+          '<div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-medium text-slate-700 mb-1">Responsável</label><input type="text" name="author" value="' + escapeHtml(d.author || '') + '" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"></div><div><label class="block text-sm font-medium text-slate-700 mb-1">Departamento</label><select name="category" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"><option value="">—</option>' + departamentos.map(dep => '<option value="' + escapeHtml(dep) + '"' + (d.category === dep ? ' selected' : '') + '>' + escapeHtml(dep) + '</option>').join('') + '</select></div></div>' +
+          '<div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-medium text-slate-700 mb-1">Processo</label><select name="processName" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"><option value="">—</option>' + processes.map(p => '<option value="' + escapeHtml(p.name) + '"' + (d.processName === p.name ? ' selected' : '') + '>' + escapeHtml(p.displayName) + '</option>').join('') + '</select></div><div><label class="block text-sm font-medium text-slate-700 mb-1">Estado</label><select name="estado" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800">' + ESTADOS.map(e => '<option value="' + escapeHtml(e) + '"' + ((d.estado || d.status) === e ? ' selected' : '') + '>' + escapeHtml(e) + '</option>').join('') + '</select></div></div>' +
+          '<div><label class="block text-sm font-medium text-slate-700 mb-1">Etiquetas (separadas por vírgula)</label><input type="text" name="tags" value="' + escapeHtml(Array.isArray(d.tags) ? d.tags.join(', ') : (d.tags || '')) + '" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800" placeholder="DSI, TicketBI, ..."></div>' +
+          '<div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-medium text-slate-700 mb-1">Ficheiro (caminho)</label><input type="text" name="filePath" value="' + escapeHtml(d.filePath || '') + '" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800" placeholder="docs/ficheiro.pdf"></div><div><label class="block text-sm font-medium text-slate-700 mb-1">Nome do ficheiro</label><input type="text" name="fileName" value="' + escapeHtml(d.fileName || '') + '" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800"></div></div>' +
+          '<div><label class="block text-sm font-medium text-slate-700 mb-1">Texto do documento (para pesquisa no texto)</label><textarea name="textContent" rows="6" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 text-sm" placeholder="Cole aqui o texto do documento para permitir pesquisar dentro do mesmo...">' + escapeHtml(d.textContent || '') + '</textarea></div>' +
+          '<div><label class="block text-sm font-medium text-slate-700 mb-1">Links (um URL por linha)</label><textarea name="links" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800">' + escapeHtml((d.conteudo && d.conteudo.links ? d.conteudo.links.join('\n') : '')) + '</textarea></div>' +
+          '<div><label class="block text-sm font-medium text-slate-700 mb-1">Vídeos (URLs, um por linha)</label><textarea name="videos" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800">' + escapeHtml((d.conteudo && d.conteudo.videos ? d.conteudo.videos.join('\n') : '')) + '</textarea></div>' +
+          '<div><label class="block text-sm font-medium text-slate-700 mb-1">Imagens (URLs, um por linha)</label><textarea name="imagens" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800">' + escapeHtml((d.conteudo && d.conteudo.imagens ? d.conteudo.imagens.join('\n') : '')) + '</textarea></div>' +
+          '<div class="flex gap-3 pt-4"><button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">Guardar</button><a href="' + (isEdit ? '#/docs/' + escapeHtml(d.id) : '#/') + '" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-800 font-medium hover:bg-slate-300">Cancelar</a></div>' +
+        '</form></div>';
+    }
+
+    function renderProcesses() {
+      const list = getProcesses();
+      return '<div class="space-y-6">' +
+        '<div class="mb-8"><h1 class="text-3xl font-bold text-slate-900 tracking-tight">Processos</h1><p class="text-slate-600 mt-2 text-base">Explore os processos e os documentos associados.</p></div>' +
+        '<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">' +
+          list.map(p => {
+            const c = CATEGORY_CLASS[p.category] || 'bg-slate-100 text-slate-700 border-slate-200';
+            return '<a href="#/processes/' + p.name + '" class="doc-card block bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 group card-accent">' +
+              '<div class="flex items-start justify-between gap-2"><div class="min-w-0 flex-1">' +
+                '<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ' + c + '">' + escapeHtml(p.category) + '</span>' +
+                '<h2 class="mt-4 font-semibold text-slate-800 group-hover:text-indigo-600 text-lg">' + escapeHtml(p.displayName) + '</h2>' +
+                '<p class="mt-1.5 text-sm text-slate-600 line-clamp-2">' + escapeHtml(p.description) + '</p>' +
+                '<p class="mt-3 text-sm font-medium text-slate-500">' + p.documentCount + ' documento(s)</p></div><span class="text-indigo-400 group-hover:text-indigo-600 shrink-0 transition">→</span></div></a>';
+          }).join('') +
+        '</div></div>';
+    }
+
+    function renderProcessDetail(processName) {
+      const processes = getProcesses();
+      const p = processes.find(x => x.name === processName);
+      if (!p) return '<div class="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-800"><p class="font-medium">Processo não encontrado</p><a href="#/processes" class="mt-4 inline-block text-indigo-600 font-semibold hover:underline">← Voltar a processos</a></div>';
+      const docs = getDocumentsByProcess(processName);
+      const catClass = CATEGORY_CLASS[p.category] || 'bg-slate-100 text-slate-700 border-slate-200';
+      return '<div class="space-y-6">' +
+        '<div class="flex items-center gap-2 text-sm text-slate-500"><a href="#/" class="hover:text-indigo-600 font-medium">Pesquisar</a><span>/</span><a href="#/processes" class="hover:text-indigo-600 font-medium">Processos</a><span>/</span><span class="text-slate-700 font-medium">' + escapeHtml(p.displayName) + '</span></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">' +
+          '<div class="flex flex-wrap items-center gap-2 mb-2"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ' + catClass + '">' + escapeHtml(p.category) + '</span><span class="text-sm text-slate-500">' + p.documentCount + ' documento(s)</span></div>' +
+          '<h1 class="text-2xl font-bold text-slate-900">' + escapeHtml(p.displayName) + '</h1><p class="mt-2 text-slate-600">' + escapeHtml(p.description) + '</p></div>' +
+        '<div><h2 class="text-lg font-semibold text-slate-800 mb-4">Documentos do processo</h2>' +
+        '<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">' +
+          docs.map(d => {
+            const est = d.estado || d.status;
+            var cardAccent = (d.category === 'DSI') ? ' card-accent-dsi' : (d.category === 'EPPO') ? ' card-accent-eppo' : ' card-accent';
+            return '<a href="#/docs/' + d.id + '" class="doc-card block bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 group' + cardAccent + '">' +
+              '<div class="flex items-start justify-between gap-3"><div class="min-w-0 flex-1">' +
+                '<span class="text-xs font-mono font-medium text-indigo-600">' + escapeHtml(d.id) + '</span><h3 class="mt-2 font-semibold text-slate-800 group-hover:text-indigo-600 truncate">' + escapeHtml(d.title) + '</h3>' +
+                '<p class="mt-1.5 text-sm text-slate-600 line-clamp-2">' + escapeHtml(d.description) + '</p>' +
+                '<div class="mt-3 flex flex-wrap gap-2">' + estadoBadge(est) + '<span class="text-xs text-slate-500">' + escapeHtml(d.version || '') + '</span>' +
+                (d.tags || []).slice(0, 5).map(t => '<span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs">' + escapeHtml(t) + '</span>').join('') + '</div></div><span class="text-indigo-400 group-hover:text-indigo-600 shrink-0 transition">→</span></div>' +
+              '<div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500"><span class="font-medium">' + escapeHtml(d.author) + '</span><span>Atualizado: ' + escapeHtml(d.updatedAt) + '</span></div></a>';
+          }).join('') + '</div></div>' +
+        '<a href="#/processes" class="inline-flex items-center text-indigo-600 font-semibold hover:text-indigo-700 hover:underline">← Voltar a processos</a></div>';
+    }
+
+    function parseHash() {
+      const hash = (location.hash || '#/').slice(1);
+      const parts = hash.split('/').filter(Boolean);
+      if (parts[0] === 'new' || (parts[0] === 'docs' && parts[1] === 'new')) return { view: 'new' };
+      if (parts[0] === 'docs' && parts[1] && parts[2] === 'edit') return { view: 'edit', id: parts[1] };
+      if (parts[0] === 'docs' && parts[1]) return { view: 'doc', id: parts[1] };
+      if (parts[0] === 'processes' && parts[1]) return { view: 'process', processName: decodeURIComponent(parts[1]) };
+      if (parts[0] === 'processes') return { view: 'processes' };
+      return { view: 'search', query: '' };
+    }
+
+    let lastSearchQuery = '';
+    let lastSearchFilters = {};
+
+    function applySearchFilters() {
+      const tipo = document.getElementById('filterTipo');
+      const estado = document.getElementById('filterEstado');
+      const departamento = document.getElementById('filterDepartamento');
+      return {
+        tipo: tipo ? tipo.value || undefined : undefined,
+        estado: estado ? estado.value || undefined : undefined,
+        departamento: departamento ? departamento.value || undefined : undefined
+      };
+    }
+
+    function render() {
+      const route = parseHash();
+      const app = document.getElementById('app');
+      documents = loadDocuments();
+
+      if (route.view === 'search') {
+        lastSearchFilters = applySearchFilters();
+        app.innerHTML = renderSearch(lastSearchQuery, lastSearchFilters);
+        const input = document.getElementById('searchInput');
+        if (input) {
+          input.focus();
+          input.addEventListener('input', function() { lastSearchQuery = this.value; updateSearchResults(); });
+        }
+        document.getElementById('filterTipo')?.addEventListener('change', updateSearchResults);
+        document.getElementById('filterEstado')?.addEventListener('change', updateSearchResults);
+        document.getElementById('filterDepartamento')?.addEventListener('change', updateSearchResults);
+      } else if (route.view === 'new') {
+        if (!canCreate()) { location.hash = '#/'; render(); return; }
+        app.innerHTML = renderDocForm(null, false);
+        document.getElementById('docForm').addEventListener('submit', function(e) {
+          e.preventDefault();
+          const fd = new FormData(this);
+          const tags = (fd.get('tags') || '').split(/[,;]/).map(t => t.trim()).filter(Boolean);
+          const links = (fd.get('links') || '').split('\n').map(s => s.trim()).filter(Boolean);
+          const videos = (fd.get('videos') || '').split('\n').map(s => s.trim()).filter(Boolean);
+          const imagens = (fd.get('imagens') || '').split('\n').map(s => s.trim()).filter(Boolean);
+          const id = createDocument({ id: fd.get('id'), title: fd.get('title'), tipo: fd.get('tipo'), description: fd.get('description'), author: fd.get('author'), category: fd.get('category') || undefined, processName: fd.get('processName') || undefined, estado: fd.get('estado'), tags, fileName: fd.get('fileName') || undefined, filePath: fd.get('filePath') || undefined, textContent: fd.get('textContent') || undefined, conteudo: { ficheiros: [], links, videos, imagens } });
+          if (id) { location.hash = '#/docs/' + id; render(); } else alert('Código já existe.');
+        });
+      } else if (route.view === 'edit') {
+        if (!canEdit()) { location.hash = '#/docs/' + route.id; render(); return; }
+        const doc = getDocumentById(route.id);
+        if (!doc) { location.hash = '#/'; render(); return; }
+        app.innerHTML = renderDocForm(doc, true);
+        document.getElementById('docForm').addEventListener('submit', function(e) {
+          e.preventDefault();
+          const fd = new FormData(this);
+          const tags = (fd.get('tags') || '').split(/[,;]/).map(t => t.trim()).filter(Boolean);
+          const links = (fd.get('links') || '').split('\n').map(s => s.trim()).filter(Boolean);
+          const videos = (fd.get('videos') || '').split('\n').map(s => s.trim()).filter(Boolean);
+          const imagens = (fd.get('imagens') || '').split('\n').map(s => s.trim()).filter(Boolean);
+          updateDocument(route.id, { title: fd.get('title'), tipo: fd.get('tipo'), description: fd.get('description'), author: fd.get('author'), category: fd.get('category') || undefined, processName: fd.get('processName') || undefined, estado: fd.get('estado'), tags, fileName: fd.get('fileName') || undefined, filePath: fd.get('filePath') || undefined, textContent: fd.get('textContent') || undefined, conteudo: { ficheiros: (getDocumentById(route.id).conteudo && getDocumentById(route.id).conteudo.ficheiros) || [], links, videos, imagens } });
+          location.hash = '#/docs/' + route.id;
+          render();
+        });
+      } else if (route.view === 'doc') {
+        app.innerHTML = renderDocDetail(route.id);
+        initDocumentSearch(route.id);
+        initDocxPreview();
+        document.getElementById('btnDeleteDoc')?.addEventListener('click', function() {
+          if (!confirm('Eliminar este documento?')) return;
+          const id = this.getAttribute('data-id');
+          deleteDocument(id);
+          location.hash = '#/';
+          render();
+        });
+        document.getElementById('btnPublishDoc')?.addEventListener('click', function() {
+          const id = this.getAttribute('data-id');
+          updateDocument(id, { estado: 'Publicado', status: 'Publicado' });
+          addChangelogEntry(id, 'Publicado');
+          render();
+        });
+        document.getElementById('btnNewVersion')?.addEventListener('click', function() {
+          const id = this.getAttribute('data-id');
+          const newId = createNewVersion(id);
+          if (newId) { location.hash = '#/docs/' + newId; render(); }
+        });
+      } else if (route.view === 'processes') {
+        app.innerHTML = renderProcesses();
+      } else if (route.view === 'process') {
+        app.innerHTML = renderProcessDetail(route.processName);
+      }
+
+      var perfilEl = document.getElementById('perfilSelect');
+      if (perfilEl) { perfilEl.value = getPerfil(); }
+      var perfilInfoEl = document.getElementById('perfilInfo');
+      if (perfilInfoEl) perfilInfoEl.textContent = 'Perfil atual: ' + getPerfil();
+      var navNew = document.getElementById('navNewDoc');
+      if (navNew) { navNew.style.display = canCreate() ? '' : 'none'; }
+
+      document.querySelectorAll('.nav-link').forEach(a => {
+        const path = a.getAttribute('data-path');
+        const isActive = path === '/' ? (location.hash === '#/' || location.hash === '') : (path === 'new' ? location.hash === '#/new' : (path === 'processes' ? (location.hash === '#/processes' || location.hash.indexOf('#/processes/') === 0) : location.hash.startsWith('#' + path)));
+        var base = 'nav-link px-3 sm:px-4 py-2 rounded-xl text-sm font-medium transition-colors ';
+        if (a.getAttribute('data-path') === 'new') a.className = base + (isActive ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25' : 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/25');
+        else a.className = base + (isActive ? 'bg-white/20 text-white' : 'text-indigo-100 hover:text-white hover:bg-white/10');
+      });
+    }
+
+    function updateSearchResults() {
+      lastSearchFilters = applySearchFilters();
+      const wrap = document.getElementById('searchResultsWrap');
+      const countEl = document.getElementById('searchCount');
+      const input = document.getElementById('searchInput');
+      const query = input ? input.value : lastSearchQuery;
+      lastSearchQuery = query;
+      if (wrap && countEl) {
+        const r = renderSearchResultsOnly(query, lastSearchFilters);
+        countEl.textContent = r.countText;
+        wrap.innerHTML = r.gridHtml;
+      }
+    }
+
+    window.addEventListener('hashchange', render);
+    window.addEventListener('load', function() {
+      var banner = document.getElementById('fileProtocolBanner');
+      if (banner && window.location.protocol === 'file:') banner.classList.remove('hidden');
+      const hash = location.hash || '#/';
+      const q = (hash.split('?')[1] || '');
+      if (q) lastSearchQuery = (new URLSearchParams(q)).get('q') || '';
+      var sel = document.getElementById('perfilSelect');
+      if (sel && !sel._perfilBound) { sel._perfilBound = true; sel.addEventListener('change', function() { setPerfil(this.value); render(); }); }
+      render();
+    });
+  </script>
+</body>
+</html>
