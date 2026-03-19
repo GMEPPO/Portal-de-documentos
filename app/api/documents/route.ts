@@ -3,6 +3,7 @@ import { addVersion, createDocument, listDocuments } from "@/lib/documents-servi
 import { requireAuth } from "@/lib/auth";
 import { uploadDocumentFile } from "@/lib/storage-service";
 import { versionSchema } from "@/lib/validations";
+import { getMainFileObjectPath } from "@/lib/storage-path";
 
 export async function GET() {
   await requireAuth();
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
       const doc = createDocument(payload, user);
 
       if (file) {
-        const objectPath = `${doc.id}/main/${file.name}`;
+        const objectPath = getMainFileObjectPath(doc.id, file.name);
         const uploaded = await uploadDocumentFile(objectPath, file);
 
         // Primera versión = fichero principal
