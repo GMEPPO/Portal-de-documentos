@@ -59,10 +59,9 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   // Asegura que exista un perfil de app (tabla publica.users) para RBAC.
   const { user } = data;
 
-  const supabaseService = createSupabaseServiceServerClient();
-  if (!supabaseService) return null;
-
-  const { data: profile, error: profileError } = await supabaseService
+  // Para leer el perfil (role), usamos el cliente "auth" (con sesión)
+  // para que el resultado sea consistente con RLS/policies.
+  const { data: profile, error: profileError } = await supabaseAuth
     .from("users")
     .select("id, name, email, role, department")
     .eq("id", user.id)
@@ -80,6 +79,8 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   }
 
   if (!profile) {
+    const supabaseService = createSupabaseServiceServerClient();
+    if (!supabaseService) return null;
     await ensureUserProfile({
       supabase: supabaseService,
       userId: user.id,
@@ -87,7 +88,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
     });
   }
 
-  const { data: refreshedProfile } = await supabaseService
+  const { data: refreshedProfile } = await supabaseAuth
     .from("users")
     .select("id, name, email, role, department")
     .eq("id", user.id)
