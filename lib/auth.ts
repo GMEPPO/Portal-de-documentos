@@ -21,23 +21,32 @@ async function ensureUserProfile(opts: {
 
   const name = opts.email ? opts.email.split("@")[0] : "Usuario";
 
-  await opts.supabase.from("users").upsert(
-    {
+  // Insertamos SOLO si no existe. Si por carrera/condiciones ya existiera,
+  // no queremos sobrescribir un role ya asignado.
+  const { data: inserted, error } = await opts.supabase
+    .from("users")
+    .insert({
       id: opts.userId,
       name,
       email: opts.email ?? `${opts.userId}@local`,
       role: "viewer",
       department: "General",
-    },
-    // Importante: no queremos sobrescribir un perfil existente (p.ej. role=admin).
-    { onConflict: "id", ignoreDuplicates: true },
-  );
-
-  return opts.supabase
-    .from("users")
-    .select("*")
-    .eq("id", opts.userId)
+    })
+    .select("id, name, email, role, department")
     .single();
+
+  if (error) {
+    // Si falló por conflicto, volvemos a leer la fila existente.
+    const { data: existingProfile } = await opts.supabase
+      .from("users")
+      .select("id, name, email, role, department")
+      .eq("id", opts.userId)
+      .maybeSingle();
+
+    return existingProfile ?? null;
+  }
+
+  return inserted ?? null;
 }
 
 export async function getCurrentUser(): Promise<AppUser | null> {
@@ -53,11 +62,22 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   const supabaseService = createSupabaseServiceServerClient();
   if (!supabaseService) return null;
 
-  const { data: profile } = await supabaseService
+  const { data: profile, error: profileError } = await supabaseService
     .from("users")
     .select("id, name, email, role, department")
     .eq("id", user.id)
     .maybeSingle();
+
+  if (profileError) {
+    // Si hay error de acceso a la tabla, no tocamos el perfil.
+    return {
+      id: user.id,
+      name: user.email ? user.email.split("@")[0] : "Usuario",
+      email: user.email ?? "",
+      role: "viewer",
+      department: "General",
+    };
+  }
 
   if (!profile) {
     await ensureUserProfile({
