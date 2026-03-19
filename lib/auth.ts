@@ -62,7 +62,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
     await ensureUserProfile({
       supabase: supabaseService,
       userId: user.id,
-      email: user.email,
+      email: user.email ?? null,
     });
   }
 
