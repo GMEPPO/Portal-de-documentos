@@ -68,7 +68,20 @@ export async function getCurrentUser(): Promise<AppUser | null> {
     .maybeSingle();
 
   if (profileError) {
-    // Si hay error de acceso a la tabla, no tocamos el perfil.
+    // Si RLS/policies están bloqueando la lectura, intentamos con service role
+    // para evitar que el UI muestre el rol incorrecto (viewer por fallback).
+    const supabaseService = createSupabaseServiceServerClient();
+    if (supabaseService) {
+      const { data: profileByService } = await supabaseService
+        .from("users")
+        .select("id, name, email, role, department")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileByService) return profileByService as AppUser;
+    }
+
+    // Último recurso: no tocamos la tabla.
     return {
       id: user.id,
       name: user.email ? user.email.split("@")[0] : "Usuario",
@@ -88,13 +101,13 @@ export async function getCurrentUser(): Promise<AppUser | null> {
     });
   }
 
-  const { data: refreshedProfile } = await supabaseAuth
+  const { data: refreshedProfile, error: refreshedError } = await supabaseAuth
     .from("users")
     .select("id, name, email, role, department")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (!refreshedProfile) {
+  if (!refreshedProfile || refreshedError) {
     // Fallback defensivo en caso de fallo de DB
     return {
       id: user.id,
