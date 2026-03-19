@@ -29,7 +29,8 @@ async function ensureUserProfile(opts: {
       role: "viewer",
       department: "General",
     },
-    { onConflict: "id" },
+    // Importante: no queremos sobrescribir un perfil existente (p.ej. role=admin).
+    { onConflict: "id", ignoreDuplicates: true },
   );
 
   return opts.supabase
@@ -52,13 +53,13 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   const supabaseService = createSupabaseServiceServerClient();
   if (!supabaseService) return null;
 
-  const { data: profile, error: profileError } = await supabaseService
+  const { data: profile } = await supabaseService
     .from("users")
     .select("id, name, email, role, department")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (profileError || !profile) {
+  if (!profile) {
     await ensureUserProfile({
       supabase: supabaseService,
       userId: user.id,
@@ -70,7 +71,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
     .from("users")
     .select("id, name, email, role, department")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!refreshedProfile) {
     // Fallback defensivo en caso de fallo de DB

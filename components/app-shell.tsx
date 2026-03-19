@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FileText, Home, Shield } from "lucide-react";
 import type { AppUser } from "@/lib/types";
+import { LogoutButton } from "@/components/auth/logout-button";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -35,8 +36,11 @@ export function AppShell({
               );
             })}
           </nav>
-          <div className="text-sm text-slate-300">
-            {user.name} · <span className="uppercase text-amber-300">{user.role}</span>
+          <div className="flex items-center gap-3 text-sm text-slate-300">
+            <span>
+              {user.name} · <span className="uppercase text-amber-300">{user.role}</span>
+            </span>
+            <LogoutButton />
           </div>
         </div>
       </header>
