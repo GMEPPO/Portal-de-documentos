@@ -10,8 +10,8 @@ const editor: AppUser = {
 };
 
 describe("documents service", () => {
-  test("crea documento", () => {
-    const doc = createDocument(
+  test("crea documento", async () => {
+    const doc = await createDocument(
       {
         title: "Nuevo documento tecnico",
         summary: "Resumen con contenido suficiente para validacion.",
@@ -26,8 +26,8 @@ describe("documents service", () => {
     expect(doc.status).toBe("draft");
   });
 
-  test("actualiza documento", () => {
-    const created = createDocument(
+  test("actualiza documento", async () => {
+    const created = await createDocument(
       {
         title: "Documento actualizable",
         summary: "Resumen inicial para actualizar.",
@@ -38,7 +38,11 @@ describe("documents service", () => {
       },
       editor,
     );
-    const updated = updateDocument(created.id, { summary: "Resumo alterado." }, editor);
+    const updated = await updateDocument(
+      created.id,
+      { summary: "Resumo alterado." },
+      editor,
+    );
     expect(updated.summary).toBe("Resumo alterado.");
   });
 });

@@ -6,7 +6,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const user = await requireAuth();
   const body = await request.json();
   try {
-    const comment = addComment(params.id, body, user);
+    const comment = await addComment(params.id, body, user);
     return NextResponse.json({ data: comment }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

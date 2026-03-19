@@ -15,7 +15,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const user = await requireAuth();
   const body = await request.json();
   try {
-    const doc = updateDocument(params.id, body, user);
+    const doc = await updateDocument(params.id, body, user);
     return NextResponse.json({ data: doc });
   } catch (error) {
     return NextResponse.json(
