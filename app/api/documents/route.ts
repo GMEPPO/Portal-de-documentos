@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
       // Parse opcional desde el "nombre" del documento (title) o desde el fichero.
       // Caso típico: "PE.DSI - Manutenção de Preços - V001"
-      const parseSource = file?.name ?? payload.title;
+      const parseSource = String(file?.name ?? payload.title ?? "");
       const parsedName = parseDepartmentTitleVersion(parseSource);
       const initialVersionNumber = parsedName.versionNumber;
 
