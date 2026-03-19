@@ -6,7 +6,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
   { href: "/documents", label: "Documentos", icon: FileText },
   { href: "/admin/users", label: "Administracao", icon: Shield },
-];
+] as const;
 
 export function AppShell({
   user,
