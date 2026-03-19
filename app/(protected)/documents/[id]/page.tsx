@@ -21,7 +21,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
         </div>
         <div className="flex items-center gap-2">
           <DocumentStatusBadge status={doc.status} />
-          <Badge>v{doc.currentVersion}</Badge>
+          <Badge>{doc.currentVersion > 0 ? `v${doc.currentVersion}` : "-"}</Badge>
           <Button asChild variant="outline">
             <Link href={`/documents/${doc.id}/edit`}>Editar</Link>
           </Button>

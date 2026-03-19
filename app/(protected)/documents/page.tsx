@@ -48,7 +48,7 @@ export default function DocumentsPage() {
                 <tr key={doc.id}>
                   <TD>{doc.title}</TD>
                   <TD>{doc.department}</TD>
-                  <TD>v{doc.currentVersion}</TD>
+                  <TD>{doc.currentVersion > 0 ? `v${doc.currentVersion}` : "-"}</TD>
                   <TD>
                     <DocumentStatusBadge status={doc.status} />
                   </TD>

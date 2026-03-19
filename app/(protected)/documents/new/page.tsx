@@ -16,11 +16,23 @@ export default function NewDocumentPage() {
       </CardHeader>
       <CardContent>
         <DocumentForm
-          onSubmit={async (values) => {
+          onSubmit={async (values, mainFile) => {
+            const formData = new FormData();
+            formData.append("title", values.title);
+            formData.append("summary", values.summary);
+            formData.append("categoryId", values.categoryId);
+            formData.append("department", values.department);
+            formData.append("ownerId", values.ownerId);
+            if (values.internalNotes) {
+              formData.append("internalNotes", values.internalNotes);
+            }
+            if (mainFile) {
+              formData.append("mainFile", mainFile, mainFile.name);
+            }
+
             const response = await fetch("/api/documents", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(values),
+              body: formData,
             });
             if (!response.ok) {
               throw new Error("Falha ao criar documento.");

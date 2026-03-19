@@ -52,7 +52,8 @@ export function createDocument(payload: unknown, actor: AppUser): DocumentRecord
     categoryId: parsed.categoryId,
     department: parsed.department,
     status: "draft",
-    currentVersion: 1,
+    // Se incrementa al crear la primera version (p.ej. tras subir fichero principal).
+    currentVersion: 0,
     authorId: actor.id,
     ownerId: parsed.ownerId,
     tags: parsed.tags ?? [],
