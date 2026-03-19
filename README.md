@@ -1,84 +1,66 @@
-# Portal de Documentos (Mockup)
+# Plataforma Documental Interna
 
-Mockup em **HTML estático** para pesquisa e exploração de documentos. Sem instalação, sem backend, sem SharePoint nem APIs. Toda a interface em **português de Portugal**. Os documentos são adicionados conforme fores passando a informação.
+Base técnica construída com:
+- Next.js 14 (App Router)
+- React 18 + TypeScript
+- Tailwind CSS + componentes estilo shadcn/ui (Radix)
+- Supabase (Auth, DB y Storage)
+- Zod + React Hook Form
+- Jest + Testing Library
 
-## Como usar
+## Arranque rápido
 
-1. Abre o ficheiro **`index.html`** no browser (duplo clique ou arrastar para o navegador).
-2. É necessária ligação à internet na primeira vez (Tailwind e fontes carregam por CDN).
+1. Copia variables de entorno:
+   - `cp .env.example .env.local`
+2. Instala dependencias:
+   - `npm install`
+3. Ejecuta en desarrollo:
+   - `npm run dev`
 
-**Não é preciso instalar nada** (nem Node, nem npm).
+## Estructura principal
 
-### Ler e pesquisar dentro dos PDFs
+- `app/`: páginas, layouts y route handlers
+- `app/api/`: endpoints internos REST-like
+- `components/ui/`: componentes base reutilizables
+- `components/documents/`: componentes del dominio documental
+- `lib/`: auth, rbac, services, validations, clients y utilidades
+- `supabase/migrations/`: esquema SQL inicial
+- `scripts/`: seed y utilidades administrativas
+- `__tests__/`: pruebas unitarias críticas
 
-Se abrires o `index.html` diretamente (duplo clique), o navegador abre com o protocolo `file://`. Por segurança, **não permite** que a página carregue outros ficheiros locais (como o PDF na raiz do projeto). Por isso a função "Buscar neste documento" pode falhar.
+## Módulos implementados
 
-**Para que a aplicação consiga ler o PDF e permitir pesquisa no texto:**
+- Login, dashboard y acceso denegado
+- Lista de documentos
+- Alta de documento
+- Detalle de documento (metadatos, versiones, comentarios, auditoría)
+- Área de administración de usuarios/permisos
+- API interna:
+  - `GET/POST /api/documents`
+  - `GET/PATCH /api/documents/:id`
+  - `POST /api/documents/:id/comments`
+  - `POST /api/documents/:id/versions`
 
-1. Na pasta do projeto (onde está o `index.html`), abre um terminal.
-2. Executa um destes comandos:
-   - **Node/npx:** `npx serve .`  
-     Depois acede a **http://localhost:3000** no browser.
-   - **Python 3:** `python -m http.server 8080`  
-     Depois acede a **http://localhost:8080** no browser.
-3. Navega até ao documento (ex.: Manual Web EPPO) e usa "Buscar neste documento" — o PDF será lido e poderás pesquisar por palavras no texto.
+## RBAC inicial
 
-**Alternativa sem servidor:** Na página do documento, clica em **Editar** e preenche o campo **"Texto para pesquisa (textContent)"** com o texto do manual. A pesquisa no documento passará a usar esse texto em vez do PDF.
+- `viewer`: consulta
+- `editor`: creación/edición/subida de versión
+- `manager`: aprobación y transición avanzada
+- `admin`: control total y gestión de usuarios
 
-## Rotas (hash na URL)
+Las reglas viven en `lib/rbac.ts` y se validan en backend.
 
-| URL (hash) | Descrição |
-|------------|-----------|
-| `index.html#/` | Pesquisa de documentos |
-| `index.html#/docs/IT-DSI-TICKETBI-V001` | Detalhe de um documento |
-| `index.html#/processes` | Listagem de processos |
-| `index.html#/processes/ticketbi-dsi` | Documentos de um processo |
+## Pruebas
 
-## Conteúdo
+- `npm run test`
 
-- **Tailwind CSS** via CDN (estilo corporativo).
-- Documentos definidos no próprio HTML; podes ir adicionando mais no array `mockDocuments` conforme fores passando processos e procedimentos.
-- Navegação por **hash** (`#/`, `#/docs/:id`, `#/processes`, `#/processes/:nome`).
-- UI tipo enterprise: header fixo, cards, badges de estado e categoria (incluindo **DSI**).
+Incluye tests para:
+- RBAC
+- validaciones de documento
+- creación/actualización de documento
+- transiciones de estado
 
-## Manuais em PDF (ler/descarregar)
+## Supabase y despliegue
 
-Coloque os PDF na **raiz do projeto** (mesma pasta onde está o `index.html`), com o nome exato esperado:
-
-- Manual Web EPPO: `MA-EPPO-WEB EPPO-V000.pdf`
-
-Na página do documento terá botões para **Abrir manual (nova janela)**, **Descarregar PDF** e um leitor embutido na página.
-
-## Documentos Word (.docx) — previsualização
-
-Coloque os ficheiros .docx na **raiz do projeto** (mesma pasta do `index.html`):
-
-- **Guias de Preparação:** `GUIAS DE PREPARAÇÃO - INFORMAÇÕES PARA DOCUMENTOS.docx`
-- **Pagamento de Encomendas MB:** `PAGAMENTO DE ENCOMENDAS COM REFERÊNCIAS MB (Fev.24).docx`
-- **TicketBI:** `IT-DSI- CRIAR TICKET NO TICKETBI-V001.docx`
-
-Na página de cada documento, além de "Abrir" e "Descarregar", aparece o botão **"Mostrar previsualização"**, que carrega o .docx e mostra o conteúdo em HTML. **Requer** que a aplicação seja aberta por um servidor local (ex.: `npx serve .`) ou em deploy (ex.: Vercel); com `file://` o browser não consegue carregar o ficheiro.
-
-## Nota sobre servidor local
-
-Se abrir o `index.html` diretamente (protocolo `file://`), alguns browsers bloqueiam o iframe do PDF e o carregamento de .docx. Use um servidor local (ex.: `npx serve .`) para ler PDFs e previsualizar Word na aplicação.
-
-## Deploy no Vercel (GitHub)
-
-Para que os documentos (PDF e .docx) funcionem no Vercel:
-
-1. **Os ficheiros têm de estar na raiz do projeto e ser commitados**  
-   Coloque os PDF e .docx **na mesma pasta que o `index.html`** (não dentro de uma subpasta). Assim o Vercel serve cada ficheiro em URLs como `https://seu-projeto.vercel.app/MA-EPPO-WEB%20EPPO-V000.pdf`.  
-   - No GitHub, confirme que no repositório aparecem os ficheiros (ex.: `MA-EPPO-WEB EPPO-V000.pdf`, `IT-DSI- CRIAR TICKET NO TICKETBI-V001.docx`) ao lado do `index.html`.  
-   - Se não aparecerem: `git add "MA-EPPO-WEB EPPO-V000.pdf" "IT-DSI- CRIAR TICKET NO TICKETBI-V001.docx"` (e os outros), depois `git commit` e `git push`.
-
-2. **Nomes iguais ao código**  
-   Os nomes dos ficheiros têm de coincidir exatamente com os `filePath` dos documentos no código (incluindo espaços e acentos).
-
-3. **Importante: `vercel.json` para não usar Vite**  
-   O repositório tem `package.json` e ficheiros do Vite (do projeto React antigo). Por defeito, o Vercel detecta isso e executa `npm run build`, fazendo deploy apenas da pasta `dist/` — e o `index.html` e os PDF/.docx da raiz **não são incluídos** (daí o 404). O ficheiro **`vercel.json`** está configurado com `"framework": null`, `"buildCommand": ""` e `"outputDirectory": "."` para que o Vercel trate o projeto como site estático e faça deploy de **toda a raiz** (index.html + documentos). Não remova nem altere o `vercel.json` se quiser que os documentos funcionem no Vercel.
-
-## Estrutura
-
-- **index.html** — Tudo num só ficheiro: HTML, dados dos documentos e JavaScript. Abre e está pronto.
-- **Ficheiros PDF e .docx** — Na mesma pasta que o `index.html` (raiz do projeto), para que o Vercel e o servidor local os sirvam corretamente.
+- Migración base en `supabase/migrations/20260319_001_init.sql`
+- Proyecto listo para Vercel (`vercel.json` framework Next.js)

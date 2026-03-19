@@ -1,0 +1,17 @@
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+
+const BUCKET = "documents";
+
+export async function uploadDocumentFile(path: string, file: File) {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) {
+    return { path, fallback: true };
+  }
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+    upsert: true,
+  });
+  if (error) {
+    throw error;
+  }
+  return { path, fallback: false };
+}

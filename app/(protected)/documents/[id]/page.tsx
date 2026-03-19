@@ -1,0 +1,91 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getDocumentById, listDocumentHistory } from "@/lib/documents-service";
+
+export default function DocumentDetailPage({ params }: { params: { id: string } }) {
+  const doc = getDocumentById(params.id);
+  if (!doc) notFound();
+  const history = listDocumentHistory(doc.id);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">{doc.title}</h1>
+          <p className="text-slate-400">{doc.summary}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <DocumentStatusBadge status={doc.status} />
+          <Badge>v{doc.currentVersion}</Badge>
+          <Button asChild variant="outline">
+            <Link href={`/documents/${doc.id}/edit`}>Editar</Link>
+          </Button>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Metadados</CardTitle>
+          <CardDescription>Informacao estrutural e classificacao.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-2 text-sm text-slate-300 md:grid-cols-2">
+          <p>Departamento: {doc.department}</p>
+          <p>Categoria: {doc.categoryId}</p>
+          <p>Responsavel: {doc.ownerId}</p>
+          <p>Atualizado: {new Date(doc.updatedAt).toLocaleString()}</p>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="versions">
+        <TabsList>
+          <TabsTrigger value="versions">Versoes</TabsTrigger>
+          <TabsTrigger value="comments">Comentarios</TabsTrigger>
+          <TabsTrigger value="audit">Historico</TabsTrigger>
+        </TabsList>
+        <TabsContent value="versions" className="mt-3">
+          <Card>
+            <CardContent className="space-y-2 pt-5 text-sm">
+              {history.versions.length === 0 && <p className="text-slate-400">Sem versoes extra.</p>}
+              {history.versions.map((item) => (
+                <p key={item.id} className="rounded border border-slate-700 p-3">
+                  v{item.versionNumber} · {item.changelog}
+                </p>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="comments" className="mt-3">
+          <Card>
+            <CardContent className="space-y-2 pt-5 text-sm">
+              {history.comments.length === 0 && (
+                <p className="text-slate-400">Sem comentarios registados.</p>
+              )}
+              {history.comments.map((item) => (
+                <p key={item.id} className="rounded border border-slate-700 p-3">
+                  {item.content}
+                </p>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="audit" className="mt-3">
+          <Card>
+            <CardContent className="space-y-2 pt-5 text-sm">
+              {history.audits.length === 0 && <p className="text-slate-400">Sem eventos.</p>}
+              {history.audits.map((item) => (
+                <p key={item.id} className="rounded border border-slate-700 p-3">
+                  {item.event}
+                </p>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
