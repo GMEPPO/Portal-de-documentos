@@ -1,9 +1,11 @@
-import { createSupabaseServiceServerClient } from "@/lib/supabase-service-server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const BUCKET = "documents";
 
 export async function uploadDocumentFile(path: string, file: File) {
-  const supabase = createSupabaseServiceServerClient();
+  // Usamos el cliente autenticado (anon + cookies/sesion) para que RLS
+  // aplique correctamente policies del bucket/objects.
+  const supabase = createSupabaseServerClient();
   if (!supabase) {
     return { path, fallback: true };
   }

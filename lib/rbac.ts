@@ -16,15 +16,15 @@ export function canViewDocument(role: UserRole) {
 }
 
 export function canEditDocument(role: UserRole) {
-  return hasMinimumRole(role, "editor");
+  return role === "admin";
 }
 
 export function canUploadVersion(role: UserRole) {
-  return hasMinimumRole(role, "editor");
+  return role === "admin";
 }
 
 export function canApproveDocument(role: UserRole) {
-  return hasMinimumRole(role, "manager");
+  return role === "admin";
 }
 
 export function canManageUsers(role: UserRole) {
@@ -45,14 +45,11 @@ export function canTransitionStatus(
   from: DocumentStatus,
   to: DocumentStatus,
 ) {
+  if (role !== "admin") {
+    return false;
+  }
   if (!transitionMap[from].includes(to)) {
     return false;
   }
-  if (role === "admin") {
-    return true;
-  }
-  if (to === "approved" || to === "published" || to === "rejected") {
-    return canApproveDocument(role);
-  }
-  return canEditDocument(role);
+  return true;
 }

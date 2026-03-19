@@ -1,11 +1,25 @@
-export function sanitizeStorageFilename(filename: string) {
-  // Evita que el nombre contenga separadores de ruta y mantenlo “seguro” como segmento.
-  const noSlashes = filename.replace(/[\/\\]/g, "_");
-  // encodeURIComponent protege caracteres especiales (ç, espacios, etc.) para el path.
-  return encodeURIComponent(noSlashes);
+import { createHash } from "crypto";
+
+function getExtension(filename: string) {
+  const lastDot = filename.lastIndexOf(".");
+  if (lastDot === -1) return "";
+  // Incluye el punto: ".pdf"
+  return filename.slice(lastDot);
 }
 
-export function getMainFileObjectPath(documentId: string, originalFilename: string) {
-  return `${documentId}/main/${sanitizeStorageFilename(originalFilename)}`;
+function shortHash(input: string) {
+  return createHash("sha256").update(input).digest("hex").slice(0, 16);
+}
+
+// Storage keys: para evitar errores por caracteres/espacios raros, generamos un nombre seguro en ASCII.
+// Si luego quieres mostrar el nombre original, se guarda en metadatos (futuro).
+export function getMainFileObjectPath(
+  documentId: string,
+  originalFilename: string,
+) {
+  const ext = getExtension(originalFilename);
+  const hash = shortHash(originalFilename);
+  const safeFilename = `${documentId}-main-${hash}${ext}`;
+  return `${documentId}/main/${safeFilename}`;
 }
 
