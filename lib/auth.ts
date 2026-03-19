@@ -1,17 +1,94 @@
 import { redirect } from "next/navigation";
-import { mockUsers } from "@/lib/constants";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServiceServerClient } from "@/lib/supabase-service-server";
 import { canManageUsers } from "@/lib/rbac";
 import type { AppUser, UserRole } from "@/lib/types";
 
-export async function getCurrentUser(): Promise<AppUser> {
-  return mockUsers[0];
+async function ensureUserProfile(opts: {
+  supabase: ReturnType<typeof createSupabaseServiceServerClient>;
+  userId: string;
+  email: string | null;
+}) {
+  if (!opts.supabase) return null;
+
+  const { data: existing } = await opts.supabase
+    .from("users")
+    .select("id")
+    .eq("id", opts.userId)
+    .maybeSingle();
+
+  if (existing) return existing;
+
+  const name = opts.email ? opts.email.split("@")[0] : "Usuario";
+
+  await opts.supabase.from("users").upsert(
+    {
+      id: opts.userId,
+      name,
+      email: opts.email ?? `${opts.userId}@local`,
+      role: "viewer",
+      department: "General",
+    },
+    { onConflict: "id" },
+  );
+
+  return opts.supabase
+    .from("users")
+    .select("*")
+    .eq("id", opts.userId)
+    .single();
+}
+
+export async function getCurrentUser(): Promise<AppUser | null> {
+  const supabaseAuth = createSupabaseServerClient();
+  if (!supabaseAuth) return null;
+
+  const { data, error } = await supabaseAuth.auth.getUser();
+  if (error || !data.user) return null;
+
+  // Asegura que exista un perfil de app (tabla publica.users) para RBAC.
+  const { user } = data;
+
+  const supabaseService = createSupabaseServiceServerClient();
+  if (!supabaseService) return null;
+
+  const { data: profile, error: profileError } = await supabaseService
+    .from("users")
+    .select("id, name, email, role, department")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile) {
+    await ensureUserProfile({
+      supabase: supabaseService,
+      userId: user.id,
+      email: user.email,
+    });
+  }
+
+  const { data: refreshedProfile } = await supabaseService
+    .from("users")
+    .select("id, name, email, role, department")
+    .eq("id", user.id)
+    .single();
+
+  if (!refreshedProfile) {
+    // Fallback defensivo en caso de fallo de DB
+    return {
+      id: user.id,
+      name: user.email ? user.email.split("@")[0] : "Usuario",
+      email: user.email ?? "",
+      role: "viewer",
+      department: "General",
+    };
+  }
+
+  return refreshedProfile as AppUser;
 }
 
 export async function requireAuth() {
   const user = await getCurrentUser();
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
   return user;
 }
 

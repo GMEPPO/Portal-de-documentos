@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    typedRoutes: true,
-  },
+  // typedRoutes desactivado: rompe el build con `href` dinámicos (`/documents/${id}`).
 };
 
 export default nextConfig;

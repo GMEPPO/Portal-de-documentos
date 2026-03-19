@@ -1,11 +1,9 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
-export function createSupabaseServerClient() {
+export function createSupabaseServiceServerClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  // Cliente "normal" (anon) para lectura de sesión/auth en SSR.
-  // Las operaciones privilegiadas van por la service role en otro client.
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
     return null;
@@ -26,3 +24,4 @@ export function createSupabaseServerClient() {
     },
   });
 }
+

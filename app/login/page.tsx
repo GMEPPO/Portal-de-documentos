@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { LoginForm } from "@/components/auth/login-form";
 
 export default function LoginPage() {
   return (
@@ -12,11 +11,9 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-slate-300">
-            Este scaffold vem com autenticacao de desenvolvimento ativa.
+            Autentica-te para aceder ao portal documental.
           </p>
-          <Button asChild className="w-full">
-            <Link href="/dashboard">Continuar</Link>
-          </Button>
+          <LoginForm />
         </CardContent>
       </Card>
     </div>

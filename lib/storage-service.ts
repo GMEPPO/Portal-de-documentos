@@ -1,9 +1,9 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServiceServerClient } from "@/lib/supabase-service-server";
 
 const BUCKET = "documents";
 
 export async function uploadDocumentFile(path: string, file: File) {
-  const supabase = createSupabaseServerClient();
+  const supabase = createSupabaseServiceServerClient();
   if (!supabase) {
     return { path, fallback: true };
   }
