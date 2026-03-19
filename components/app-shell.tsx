@@ -2,7 +2,6 @@ import Link from "next/link";
 import { FileText, Home, Shield } from "lucide-react";
 import type { AppUser } from "@/lib/types";
 import { LogoutButton } from "@/components/auth/logout-button";
-import { AuthDebugger } from "@/components/debug/auth-debugger";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -41,7 +40,6 @@ export function AppShell({
             <span>
               {user.name} · <span className="uppercase text-amber-300">{user.role}</span>
             </span>
-            <AuthDebugger />
             <LogoutButton />
           </div>
         </div>
