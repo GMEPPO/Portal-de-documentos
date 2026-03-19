@@ -41,9 +41,6 @@ export function AppShell({
             <span>
               {user.name} · <span className="uppercase text-amber-300">{user.role}</span>
             </span>
-            <span className="hidden text-xs text-slate-400 sm:inline">
-              id: {user.id.slice(0, 8)}…
-            </span>
             <AuthDebugger />
             <LogoutButton />
           </div>

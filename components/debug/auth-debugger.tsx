@@ -51,6 +51,31 @@ export function AuthDebugger() {
     };
   }, []);
 
-  return null;
+  if (status.state === "loading") {
+    return (
+      <span className="text-[10px] text-slate-400">auth-debug: ...</span>
+    );
+  }
+
+  if (status.state === "error") {
+    return (
+      <span className="max-w-[220px] overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-red-300">
+        auth-debug: {status.message}
+      </span>
+    );
+  }
+
+  if (status.state === "ok") {
+    return (
+      <span className="text-[10px] text-slate-400">
+        auth-debug: session={status.roleSession ?? "-"} / service=
+        {status.roleService ?? "-"}
+      </span>
+    );
+  }
+
+  return (
+    <span className="text-[10px] text-slate-400">auth-debug: idle</span>
+  );
 }
 
