@@ -60,8 +60,14 @@ export async function POST(request: Request) {
     const doc = createDocument(body, user);
     return NextResponse.json({ data: doc }, { status: 201 });
   } catch (error) {
+    const message =
+      error && typeof error === "object" && "message" in error
+        ? String((error as any).message)
+        : error instanceof Error
+          ? error.message
+          : "Erro inesperado.";
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro inesperado." },
+      { error: message },
       { status: 400 },
     );
   }

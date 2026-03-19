@@ -35,7 +35,16 @@ export default function NewDocumentPage() {
               body: formData,
             });
             if (!response.ok) {
-              throw new Error("Falha ao criar documento.");
+              const data = await response.json().catch(() => null);
+              const message =
+                (data?.error as string | undefined) ??
+                "Falha ao criar documento.";
+              pushToast({
+                id: crypto.randomUUID(),
+                title: "Nao foi possivel criar o documento",
+                description: message,
+              });
+              return;
             }
             pushToast({
               id: crypto.randomUUID(),
