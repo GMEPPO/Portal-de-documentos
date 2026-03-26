@@ -18,10 +18,20 @@ export function createSupabaseServerClient() {
         return cookieStore.get(name)?.value;
       },
       set(name: string, value: string, options: Record<string, unknown>) {
-        cookieStore.set({ name, value, ...(options as object) });
+        // En Server Components, Next puede bloquear escritura de cookies.
+        // Evitamos romper el render por intentos de refresh de sesión.
+        try {
+          cookieStore.set({ name, value, ...(options as object) });
+        } catch {
+          // noop
+        }
       },
       remove(name: string, options: Record<string, unknown>) {
-        cookieStore.set({ name, value: "", ...(options as object) });
+        try {
+          cookieStore.set({ name, value: "", ...(options as object) });
+        } catch {
+          // noop
+        }
       },
     },
   });
