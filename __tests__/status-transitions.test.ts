@@ -1,15 +1,19 @@
 import { canTransitionStatus } from "@/lib/rbac";
 
 describe("state transitions", () => {
-  test("manager puede aprobar desde revision", () => {
-    expect(canTransitionStatus("manager", "in_review", "approved")).toBe(true);
+  test("admin puede publicar desde revision", () => {
+    expect(canTransitionStatus("admin", "in_review", "published")).toBe(true);
   });
 
   test("editor no puede publicar", () => {
-    expect(canTransitionStatus("editor", "approved", "published")).toBe(false);
+    expect(canTransitionStatus("editor", "in_review", "published")).toBe(false);
   });
 
-  test("transicion inexistente falla", () => {
-    expect(canTransitionStatus("admin", "draft", "published")).toBe(false);
+  test("published pasa a atualizacao", () => {
+    expect(canTransitionStatus("admin", "published", "updating")).toBe(true);
+  });
+
+  test("updating vuelve a publicado", () => {
+    expect(canTransitionStatus("admin", "updating", "published")).toBe(true);
   });
 });

@@ -7,6 +7,7 @@ describe("Document validations", () => {
       summary: "Resumo funcional com requisitos obrigatorios.",
       categoryId: "cat-procedure",
       department: "Operaciones",
+      versionNumber: 1,
       ownerId: "u-manager",
       tags: ["interno"],
     });

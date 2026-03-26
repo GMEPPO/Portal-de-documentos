@@ -1,11 +1,11 @@
 import { createDocument, updateDocument } from "@/lib/documents-service";
 import type { AppUser } from "@/lib/types";
 
-const editor: AppUser = {
-  id: "u-editor",
-  name: "Editor",
-  email: "editor@local",
-  role: "editor",
+const admin: AppUser = {
+  id: "u-admin",
+  name: "Admin",
+  email: "admin@local",
+  role: "admin",
   department: "Calidad",
 };
 
@@ -17,13 +17,14 @@ describe("documents service", () => {
         summary: "Resumen con contenido suficiente para validacion.",
         categoryId: "cat-procedure",
         department: "Calidad",
+        versionNumber: 1,
         ownerId: "u-editor",
         tags: [],
       },
-      editor,
+      admin,
     );
     expect(doc.id).toBeDefined();
-    expect(doc.status).toBe("draft");
+    expect(doc.status).toBe("in_review");
   });
 
   test("actualiza documento", async () => {
@@ -33,15 +34,16 @@ describe("documents service", () => {
         summary: "Resumen inicial para actualizar.",
         categoryId: "cat-procedure",
         department: "Calidad",
+        versionNumber: 1,
         ownerId: "u-editor",
         tags: [],
       },
-      editor,
+      admin,
     );
     const updated = await updateDocument(
       created.id,
       { summary: "Resumo alterado." },
-      editor,
+      admin,
     );
     expect(updated.summary).toBe("Resumo alterado.");
   });

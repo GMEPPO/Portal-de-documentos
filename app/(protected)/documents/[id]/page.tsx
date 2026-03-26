@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { requireAuth } from "@/lib/auth";
 import { getDocumentById, listDocumentHistory } from "@/lib/documents-service";
+import { getCategoryNameById } from "@/lib/constants";
 import { canAccessDocumentStatus, canEditDocument } from "@/lib/rbac";
 import { getDocumentFileSignedUrl } from "@/lib/storage-service";
 import type { DocumentAuditRecord } from "@/lib/types";
@@ -94,7 +95,7 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
         </CardHeader>
         <CardContent className="grid gap-2 text-sm text-slate-300 md:grid-cols-2">
           <p>Departamento: {doc.department}</p>
-          <p>Categoria: {doc.categoryId || "Sem categoria"}</p>
+          <p>Categoria: {doc.categoryId ? getCategoryNameById(doc.categoryId) : "Sem categoria"}</p>
           <p>Responsavel: {doc.ownerId}</p>
           <p>Disponivel para todos: {doc.status === "published" ? "Sim" : "Nao"}</p>
           <p>Atualizado: {new Date(doc.updatedAt).toLocaleString()}</p>

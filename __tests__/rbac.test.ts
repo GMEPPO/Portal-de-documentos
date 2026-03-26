@@ -10,15 +10,17 @@ describe("RBAC", () => {
     expect(canEditDocument("viewer")).toBe(false);
   });
 
-  test("manager puede aprobar", () => {
-    expect(canApproveDocument("manager")).toBe(true);
+  test("solo admin puede aprobar", () => {
+    expect(canApproveDocument("manager")).toBe(false);
+    expect(canApproveDocument("admin")).toBe(true);
   });
 
-  test("editor puede subir versiones", () => {
-    expect(canUploadVersion("editor")).toBe(true);
+  test("solo admin puede subir versiones", () => {
+    expect(canUploadVersion("editor")).toBe(false);
+    expect(canUploadVersion("admin")).toBe(true);
   });
 
   test("viewer no puede publicar", () => {
-    expect(canTransitionStatus("viewer", "approved", "published")).toBe(false);
+    expect(canTransitionStatus("viewer", "in_review", "published")).toBe(false);
   });
 });

@@ -6,13 +6,23 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { documentCreateSchema, type DocumentCreateInput } from "@/lib/validations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DocumentFilePicker } from "@/components/documents/document-file-picker";
+import type { DocumentCategory } from "@/lib/types";
 
 export function DocumentForm({
   onSubmit,
+  categories,
 }: {
   onSubmit: (values: DocumentCreateInput, mainFile: File | null) => Promise<void>;
+  categories: DocumentCategory[];
 }) {
   const [mainFile, setMainFile] = useState<File | null>(null);
   const form = useForm<DocumentCreateInput>({
@@ -40,6 +50,26 @@ export function DocumentForm({
     >
       <Input placeholder="Titulo" {...form.register("title")} />
       <Textarea placeholder="Resumo tecnico" {...form.register("summary")} />
+      <Select
+        value={form.watch("categoryId") || "__none__"}
+        onValueChange={(value) =>
+          form.setValue("categoryId", value === "__none__" ? "" : value, {
+            shouldValidate: true,
+          })
+        }
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Categoria" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">Sem categoria</SelectItem>
+          {categories.map((category) => (
+            <SelectItem key={category.id} value={category.id}>
+              {category.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Input placeholder="Departamento" {...form.register("department")} />
       <Input
         type="number"

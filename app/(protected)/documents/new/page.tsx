@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { DocumentForm } from "@/components/documents/document-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { pushToast } from "@/components/ui/toaster";
+import { mockCategories } from "@/lib/constants";
 
 export default function NewDocumentPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function NewDocumentPage() {
       </CardHeader>
       <CardContent>
         <DocumentForm
+          categories={mockCategories}
           onSubmit={async (values, mainFile) => {
             if (!mainFile) {
               pushToast({
