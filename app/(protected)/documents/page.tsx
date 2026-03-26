@@ -4,10 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TBody, TD, TH, THead } from "@/components/ui/table";
+import { requireAuth } from "@/lib/auth";
 import { listDocuments } from "@/lib/documents-service";
+import { canAccessDocumentStatus } from "@/lib/rbac";
 
 export default async function DocumentsPage() {
-  const documents = await listDocuments();
+  const user = await requireAuth();
+  const documents = (await listDocuments()).filter((doc) =>
+    canAccessDocumentStatus(user.role, doc.status),
+  );
 
   return (
     <div className="space-y-6">

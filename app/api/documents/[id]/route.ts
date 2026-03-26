@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { getDocumentById, updateDocument } from "@/lib/documents-service";
 import { requireAuth } from "@/lib/auth";
+import { canAccessDocumentStatus } from "@/lib/rbac";
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
-  await requireAuth();
+  const user = await requireAuth();
   const doc = await getDocumentById(params.id);
   if (!doc) {
+    return NextResponse.json({ error: "Documento no encontrado." }, { status: 404 });
+  }
+  if (!canAccessDocumentStatus(user.role, doc.status)) {
     return NextResponse.json({ error: "Documento no encontrado." }, { status: 404 });
   }
   return NextResponse.json({ data: doc });

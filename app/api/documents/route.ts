@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { addVersion, createDocument, listDocuments } from "@/lib/documents-service";
 import { requireAuth } from "@/lib/auth";
+import { canAccessDocumentStatus } from "@/lib/rbac";
 import { deleteDocumentFile, uploadDocumentFile } from "@/lib/storage-service";
 import { versionSchema } from "@/lib/validations";
 import { getMainFileObjectPath } from "@/lib/storage-path";
@@ -8,8 +9,11 @@ import { parseDepartmentTitleVersion } from "@/lib/document-name-parser";
 import { createSupabaseServiceServerClient } from "@/lib/supabase-service-server";
 
 export async function GET() {
-  await requireAuth();
-  return NextResponse.json({ data: await listDocuments() });
+  const user = await requireAuth();
+  const documents = (await listDocuments()).filter((doc) =>
+    canAccessDocumentStatus(user.role, doc.status),
+  );
+  return NextResponse.json({ data: documents });
 }
 
 export async function POST(request: Request) {

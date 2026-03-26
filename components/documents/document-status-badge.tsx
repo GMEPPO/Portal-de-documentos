@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { documentStatusLabels } from "@/lib/rbac";
 import type { DocumentStatus } from "@/lib/types";
 
 const styles: Record<DocumentStatus, string> = {
@@ -10,15 +11,6 @@ const styles: Record<DocumentStatus, string> = {
   rejected: "bg-red-600/20 text-red-300 border-red-600/50",
 };
 
-const labels: Record<DocumentStatus, string> = {
-  draft: "Rascunho",
-  in_review: "Em revisao",
-  approved: "Aprovado",
-  published: "Publicado",
-  archived: "Arquivado",
-  rejected: "Rejeitado",
-};
-
 export function DocumentStatusBadge({ status }: { status: DocumentStatus }) {
-  return <Badge className={styles[status]}>{labels[status]}</Badge>;
+  return <Badge className={styles[status]}>{documentStatusLabels[status]}</Badge>;
 }

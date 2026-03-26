@@ -40,6 +40,15 @@ const transitionMap: Record<DocumentStatus, DocumentStatus[]> = {
   rejected: ["draft", "archived"],
 };
 
+export const documentStatusLabels: Record<DocumentStatus, string> = {
+  draft: "Rascunho",
+  in_review: "Em revisao",
+  approved: "Aprovado",
+  published: "Publicado",
+  archived: "Arquivado",
+  rejected: "Rejeitado",
+};
+
 export function canTransitionStatus(
   role: UserRole,
   from: DocumentStatus,
@@ -52,4 +61,21 @@ export function canTransitionStatus(
     return false;
   }
   return true;
+}
+
+export function getAllowedTransitions(
+  role: UserRole,
+  from: DocumentStatus,
+) {
+  return transitionMap[from].filter((to) => canTransitionStatus(role, from, to));
+}
+
+export function canAccessDocumentStatus(
+  role: UserRole,
+  status: DocumentStatus,
+) {
+  if (role === "admin") {
+    return true;
+  }
+  return status === "published";
 }

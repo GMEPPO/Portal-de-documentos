@@ -1,10 +1,14 @@
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireAuth } from "@/lib/auth";
 import { getDocumentById } from "@/lib/documents-service";
+import { canEditDocument } from "@/lib/rbac";
 
 export default async function EditDocumentPage({ params }: { params: { id: string } }) {
+  const user = await requireAuth();
   const doc = await getDocumentById(params.id);
   if (!doc) notFound();
+  if (!canEditDocument(user.role)) notFound();
 
   return (
     <Card>

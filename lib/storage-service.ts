@@ -28,3 +28,20 @@ export async function deleteDocumentFile(path: string) {
     throw error;
   }
 }
+
+export async function getDocumentFileSignedUrl(path: string, expiresIn = 3600) {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(path, expiresIn);
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.signedUrl ?? null;
+}

@@ -1,8 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireAuth } from "@/lib/auth";
 import { listDocuments } from "@/lib/documents-service";
+import { canAccessDocumentStatus } from "@/lib/rbac";
 
 export default async function DashboardPage() {
-  const docs = await listDocuments();
+  const user = await requireAuth();
+  const docs = (await listDocuments()).filter((doc) =>
+    canAccessDocumentStatus(user.role, doc.status),
+  );
   const pending = docs.filter((doc) => doc.status === "in_review").length;
   const published = docs.filter((doc) => doc.status === "published").length;
 
