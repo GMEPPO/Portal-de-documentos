@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TBody, TD, TH, THead } from "@/components/ui/table";
 import { listDocuments } from "@/lib/documents-service";
 
-export default function DocumentsPage() {
-  const documents = listDocuments();
+export default async function DocumentsPage() {
+  const documents = await listDocuments();
 
   return (
     <div className="space-y-6">
@@ -44,6 +44,13 @@ export default function DocumentsPage() {
               </tr>
             </THead>
             <TBody>
+              {documents.length === 0 && (
+                <tr>
+                  <TD colSpan={5} className="py-8 text-center text-slate-400">
+                    Sem documentos registados.
+                  </TD>
+                </tr>
+              )}
               {documents.map((doc) => (
                 <tr key={doc.id}>
                   <TD>{doc.title}</TD>

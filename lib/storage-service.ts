@@ -17,3 +17,14 @@ export async function uploadDocumentFile(path: string, file: File) {
   }
   return { path, fallback: false };
 }
+
+export async function deleteDocumentFile(path: string) {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) {
+    return;
+  }
+  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  if (error) {
+    throw error;
+  }
+}

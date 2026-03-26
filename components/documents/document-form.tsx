@@ -20,9 +20,9 @@ export function DocumentForm({
     defaultValues: {
       title: "",
       summary: "",
-      categoryId: "cat-procedure",
+      categoryId: "",
       department: "",
-      ownerId: "u-manager",
+      ownerId: "",
       tags: [],
       internalNotes: "",
     },

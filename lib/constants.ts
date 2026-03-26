@@ -1,4 +1,4 @@
-import type { AppUser, DocumentCategory, DocumentRecord } from "@/lib/types";
+import type { AppUser, DocumentCategory } from "@/lib/types";
 
 export const mockUsers: AppUser[] = [
   {
@@ -23,20 +23,3 @@ export const mockCategories: DocumentCategory[] = [
   { id: "cat-form", name: "Formulario" },
 ];
 
-export const mockDocuments: DocumentRecord[] = [
-  {
-    id: "doc-001",
-    title: "Norma interna de revision documental",
-    summary: "Define criterios de revision, periodicidad y responsabilidades.",
-    categoryId: "cat-policy",
-    department: "Calidad",
-    status: "in_review",
-    currentVersion: 2,
-    authorId: "u-manager",
-    ownerId: "u-manager",
-    tags: ["calidad", "revision"],
-    internalNotes: "Pendiente feedback legal.",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];

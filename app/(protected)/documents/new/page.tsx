@@ -20,9 +20,10 @@ export default function NewDocumentPage() {
             const formData = new FormData();
             formData.append("title", values.title);
             formData.append("summary", values.summary);
-            formData.append("categoryId", values.categoryId);
+            if (values.categoryId) {
+              formData.append("categoryId", values.categoryId);
+            }
             formData.append("department", values.department);
-            formData.append("ownerId", values.ownerId);
             if (values.internalNotes) {
               formData.append("internalNotes", values.internalNotes);
             }

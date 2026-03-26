@@ -7,10 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDocumentById, listDocumentHistory } from "@/lib/documents-service";
 
-export default function DocumentDetailPage({ params }: { params: { id: string } }) {
-  const doc = getDocumentById(params.id);
+export default async function DocumentDetailPage({ params }: { params: { id: string } }) {
+  const doc = await getDocumentById(params.id);
   if (!doc) notFound();
-  const history = listDocumentHistory(doc.id);
+  const history = await listDocumentHistory(doc.id);
 
   return (
     <div className="space-y-6">

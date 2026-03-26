@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { mockCategories, mockDocuments } from "@/lib/constants";
+import { mockCategories } from "@/lib/constants";
 import {
   canEditDocument,
   canTransitionStatus,
@@ -19,7 +19,7 @@ import {
 } from "@/lib/validations";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
-const documentsStore = [...mockDocuments];
+const documentsStore: DocumentRecord[] = [];
 const versionsStore: DocumentVersionRecord[] = [];
 const commentsStore: DocumentCommentRecord[] = [];
 const auditStore: { id: string; event: string; at: string; actorId: string }[] = [];
@@ -77,22 +77,37 @@ export function listCategories() {
   return mockCategories;
 }
 
-export function listDocuments() {
+export async function listDocuments() {
   const supabase = createSupabaseServerClient();
   if (!supabase) return documentsStore;
 
-  // Nota: para la UI actual, devolvemos todos (filtros futuros se añaden luego).
-  // Al tratarse de RLS, el resultado dependerá del rol/policies.
-  // Para evitar convertir en async la API pública existente, seguimos con fallback en memoria.
-  return documentsStore;
+  const { data, error } = await supabase
+    .from("documents")
+    .select("*")
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map(mapDocumentRow);
 }
 
-export function getDocumentById(id: string) {
+export async function getDocumentById(id: string) {
   const supabase = createSupabaseServerClient();
   if (!supabase) return documentsStore.find((doc) => doc.id === id) ?? null;
 
-  // Idéntica limitación que listDocuments(): mantener firma sync.
-  return documentsStore.find((doc) => doc.id === id) ?? null;
+  const { data, error } = await supabase
+    .from("documents")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ? mapDocumentRow(data) : null;
 }
 
 export async function createDocument(
@@ -130,7 +145,7 @@ export async function createDocument(
         status: "draft",
         current_version: initialCurrentVersion,
         author_id: actor.id,
-        owner_id: parsed.ownerId,
+        owner_id: parsed.ownerId ?? actor.id,
         main_file_path: null,
         tags: parsed.tags ?? [],
         internal_notes: parsed.internalNotes ?? null,
@@ -168,7 +183,7 @@ export async function createDocument(
     status: "draft",
     currentVersion: initialCurrentVersion,
     authorId: actor.id,
-    ownerId: parsed.ownerId,
+    ownerId: parsed.ownerId ?? actor.id,
     tags: parsed.tags ?? [],
     internalNotes: parsed.internalNotes,
     createdAt: now,
@@ -241,7 +256,7 @@ export async function updateDocument(
   }
 
   // Fallback en memoria
-  const doc = getDocumentById(id);
+  const doc = documentsStore.find((item) => item.id === id);
   if (!doc) throw new Error("Documento no encontrado.");
   if (parsed.status && !canTransitionStatus(actor.role, doc.status, parsed.status)) {
     throw new Error("Transicion de estado no permitida.");
@@ -297,7 +312,7 @@ export async function addComment(
     return mapCommentRow(data);
   }
 
-  const doc = getDocumentById(documentId);
+  const doc = documentsStore.find((item) => item.id === documentId);
   if (!doc) throw new Error("Documento no encontrado.");
   const comment: DocumentCommentRecord = {
     id: randomUUID(),
@@ -380,7 +395,7 @@ export async function addVersion(
   }
 
   // Fallback en memoria
-  const doc = getDocumentById(documentId);
+  const doc = documentsStore.find((item) => item.id === documentId);
   if (!doc) throw new Error("Documento no encontrado.");
   const version: DocumentVersionRecord = {
     id: randomUUID(),
@@ -399,7 +414,7 @@ export async function addVersion(
   return version;
 }
 
-export function listDocumentHistory(documentId: string) {
+export async function listDocumentHistory(documentId: string) {
   const supabase = createSupabaseServerClient();
   if (!supabase) {
     return {
@@ -409,11 +424,42 @@ export function listDocumentHistory(documentId: string) {
     };
   }
 
-  // Para mantener firma sync, usamos fallback en memoria para ahora.
-  // (En el siguiente paso podemos convertir estas funciones a async y actualizar route handlers/UI.)
+  const [versionsResult, commentsResult, auditsResult] = await Promise.all([
+    supabase
+      .from("document_versions")
+      .select("*")
+      .eq("document_id", documentId)
+      .order("version_number", { ascending: false }),
+    supabase
+      .from("document_comments")
+      .select("*")
+      .eq("document_id", documentId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("audit_logs")
+      .select("id,event,created_at,actor_id")
+      .contains("metadata", { documentId })
+      .order("created_at", { ascending: false }),
+  ]);
+
+  if (versionsResult.error) {
+    throw new Error(versionsResult.error.message);
+  }
+  if (commentsResult.error) {
+    throw new Error(commentsResult.error.message);
+  }
+  if (auditsResult.error) {
+    throw new Error(auditsResult.error.message);
+  }
+
   return {
-    versions: versionsStore.filter((item) => item.documentId === documentId),
-    comments: commentsStore.filter((item) => item.documentId === documentId),
-    audits: auditStore.filter((item) => item.event.includes(documentId)),
+    versions: (versionsResult.data ?? []).map(mapVersionRow),
+    comments: (commentsResult.data ?? []).map(mapCommentRow),
+    audits: (auditsResult.data ?? []).map((item) => ({
+      id: item.id,
+      event: item.event,
+      actorId: item.actor_id,
+      at: item.created_at,
+    })),
   };
 }

@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import { addVersion, createDocument, listDocuments } from "@/lib/documents-service";
 import { requireAuth } from "@/lib/auth";
-import { uploadDocumentFile } from "@/lib/storage-service";
+import { deleteDocumentFile, uploadDocumentFile } from "@/lib/storage-service";
 import { versionSchema } from "@/lib/validations";
 import { getMainFileObjectPath } from "@/lib/storage-path";
 import { parseDepartmentTitleVersion } from "@/lib/document-name-parser";
+import { createSupabaseServiceServerClient } from "@/lib/supabase-service-server";
 
 export async function GET() {
   await requireAuth();
-  return NextResponse.json({ data: listDocuments() });
+  return NextResponse.json({ data: await listDocuments() });
 }
 
 export async function POST(request: Request) {
   const user = await requireAuth();
+  let createdDocumentId: string | null = null;
+  let uploadedPath: string | null = null;
   try {
     const contentType = request.headers.get("content-type") ?? "";
 
@@ -58,10 +61,12 @@ export async function POST(request: Request) {
       const doc = await createDocument(payload, user, {
         initialVersionNumber,
       });
+      createdDocumentId = doc.id;
 
       if (file) {
         const objectPath = getMainFileObjectPath(doc.id, file.name);
         const uploaded = await uploadDocumentFile(objectPath, file);
+        uploadedPath = uploaded.path;
 
         // Primera versión = fichero principal
         const versionPayload = versionSchema.parse({
@@ -85,6 +90,19 @@ export async function POST(request: Request) {
     const doc = await createDocument(body, user);
     return NextResponse.json({ data: doc }, { status: 201 });
   } catch (error) {
+    if (createdDocumentId) {
+      const supabase = createSupabaseServiceServerClient();
+      if (supabase) {
+        await supabase.from("documents").delete().eq("id", createdDocumentId);
+      }
+    }
+    if (uploadedPath) {
+      try {
+        await deleteDocumentFile(uploadedPath);
+      } catch {
+        // noop
+      }
+    }
     const message =
       error && typeof error === "object" && "message" in error
         ? String((error as any).message)

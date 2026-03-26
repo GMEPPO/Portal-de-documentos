@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth";
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   await requireAuth();
-  const doc = getDocumentById(params.id);
+  const doc = await getDocumentById(params.id);
   if (!doc) {
     return NextResponse.json({ error: "Documento no encontrado." }, { status: 404 });
   }

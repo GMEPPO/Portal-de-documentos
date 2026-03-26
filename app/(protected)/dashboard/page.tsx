@@ -1,8 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { listDocuments } from "@/lib/documents-service";
 
-export default function DashboardPage() {
-  const docs = listDocuments();
+export default async function DashboardPage() {
+  const docs = await listDocuments();
   const pending = docs.filter((doc) => doc.status === "in_review").length;
   const published = docs.filter((doc) => doc.status === "published").length;
 

@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDocumentById } from "@/lib/documents-service";
 
-export default function EditDocumentPage({ params }: { params: { id: string } }) {
-  const doc = getDocumentById(params.id);
+export default async function EditDocumentPage({ params }: { params: { id: string } }) {
+  const doc = await getDocumentById(params.id);
   if (!doc) notFound();
 
   return (
