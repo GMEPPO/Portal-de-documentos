@@ -22,6 +22,7 @@ export function DocumentForm({
       summary: "",
       categoryId: "",
       department: "",
+      versionNumber: 1,
       ownerId: "",
       tags: [],
       internalNotes: "",
@@ -40,6 +41,12 @@ export function DocumentForm({
       <Input placeholder="Titulo" {...form.register("title")} />
       <Textarea placeholder="Resumo tecnico" {...form.register("summary")} />
       <Input placeholder="Departamento" {...form.register("department")} />
+      <Input
+        type="number"
+        min={1}
+        placeholder="Versao"
+        {...form.register("versionNumber", { valueAsNumber: true })}
+      />
       <Textarea placeholder="Notas internas" {...form.register("internalNotes")} />
       <DocumentFilePicker onFileChange={setMainFile} />
       <Button type="submit">Guardar documento</Button>

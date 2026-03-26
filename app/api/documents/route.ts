@@ -41,6 +41,10 @@ export async function POST(request: Request) {
         // Para evitar FK inválidos y simplificar el flujo,
         // el responsable inicial del documento es el usuario autenticado.
         ownerId: user.id,
+        versionNumber:
+          typeof form.get("versionNumber") === "string"
+            ? Number(form.get("versionNumber"))
+            : 1,
         internalNotes:
           typeof form.get("internalNotes") === "string"
             ? form.get("internalNotes")
@@ -52,7 +56,7 @@ export async function POST(request: Request) {
       // Caso típico: "PE.DSI - Manutenção de Preços - V001"
       const parseSource = String(file?.name ?? payload.title ?? "");
       const parsedName = parseDepartmentTitleVersion(parseSource);
-      const initialVersionNumber = parsedName.versionNumber;
+      const initialVersionNumber = payload.versionNumber || parsedName.versionNumber || 1;
 
       // Si el parse encontró departamento/título, los aplicamos sobre el payload.
       if (parsedName.department) {
@@ -67,6 +71,10 @@ export async function POST(request: Request) {
       });
       createdDocumentId = doc.id;
 
+      if (!file) {
+        throw new Error("Debes adjuntar un ficheiro para criar o documento.");
+      }
+
       if (file) {
         const objectPath = getMainFileObjectPath(doc.id, file.name);
         const uploaded = await uploadDocumentFile(objectPath, file);
@@ -76,6 +84,7 @@ export async function POST(request: Request) {
         const versionPayload = versionSchema.parse({
           changelog: `Inicial (${initialVersionNumber ? `V${String(initialVersionNumber).padStart(3, "0")}` : "V?"}) - upload do ficheiro principal`,
           filePath: uploaded.path,
+          versionNumber: initialVersionNumber,
         });
 
         // Si el nombre trae V###, creamos el documento con la versión inicial correspondiente.

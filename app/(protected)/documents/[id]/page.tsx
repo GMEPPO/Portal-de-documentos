@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DocumentFileViewer } from "@/components/documents/document-file-viewer";
-import { DocumentStatusActions } from "@/components/documents/document-status-actions";
+import { DocumentVersionsPanel } from "@/components/documents/document-versions-panel";
+import { DocumentWorkflowActions } from "@/components/documents/document-workflow-actions";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,8 +10,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { requireAuth } from "@/lib/auth";
 import { getDocumentById, listDocumentHistory } from "@/lib/documents-service";
-import { canAccessDocumentStatus, getAllowedTransitions } from "@/lib/rbac";
+import { canAccessDocumentStatus, canEditDocument } from "@/lib/rbac";
 import { getDocumentFileSignedUrl } from "@/lib/storage-service";
+import type { DocumentAuditRecord } from "@/lib/types";
+
+function formatAuditEvent(item: DocumentAuditRecord) {
+  const versionNumber =
+    typeof item.metadata?.versionNumber === "number" ? item.metadata.versionNumber : null;
+
+  if (item.event.startsWith("document.version.deleted:")) {
+    return versionNumber !== null
+      ? `Eliminada a versao V${String(versionNumber).padStart(3, "0")}.`
+      : "Eliminada uma versao antiga do documento.";
+  }
+
+  if (item.event.startsWith("document.version:")) {
+    return versionNumber !== null
+      ? `Carregada a versao V${String(versionNumber).padStart(3, "0")}.`
+      : "Carregada uma nova versao do documento.";
+  }
+
+  if (item.event.startsWith("document.created:")) return "Documento criado.";
+  if (item.event.startsWith("document.updated:")) {
+    return "Metadados ou estado do documento atualizados.";
+  }
+  if (item.event.startsWith("document.comment:")) {
+    return "Adicionado um comentario ao documento.";
+  }
+
+  return item.event;
+}
 
 export default async function DocumentDetailPage({ params }: { params: { id: string } }) {
   const user = await requireAuth();
@@ -18,12 +47,19 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
   if (!doc) notFound();
   if (!canAccessDocumentStatus(user.role, doc.status)) notFound();
   const history = await listDocumentHistory(doc.id);
-  const allowedTransitions = getAllowedTransitions(user.role, doc.status);
+  const canManageDocument = canEditDocument(user.role);
   const readableFilePath = doc.previewFilePath ?? doc.mainFilePath;
   const fileUrl = readableFilePath
     ? await getDocumentFileSignedUrl(readableFilePath)
     : null;
   const readableFilename = readableFilePath?.split("/").pop() ?? doc.title;
+  const versions = await Promise.all(
+    history.versions.map(async (item) => ({
+      ...item,
+      fileUrl: await getDocumentFileSignedUrl(item.filePath),
+      filename: item.filePath.split("/").pop() ?? `v${item.versionNumber}`,
+    })),
+  );
 
   return (
     <div className="space-y-6">
@@ -36,15 +72,18 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
           <div className="flex items-center gap-2 xl:justify-end">
             <DocumentStatusBadge status={doc.status} />
             <Badge>{doc.currentVersion > 0 ? `v${doc.currentVersion}` : "-"}</Badge>
-            <Button asChild variant="outline">
-              <Link href={`/documents/${doc.id}/edit`}>Editar</Link>
-            </Button>
+            {canManageDocument && (
+              <Button asChild variant="outline">
+                <Link href={`/documents/${doc.id}/edit?mode=update`}>Editar</Link>
+              </Button>
+            )}
           </div>
-          <DocumentStatusActions
-            documentId={doc.id}
-            currentStatus={doc.status}
-            allowedTransitions={allowedTransitions}
-          />
+          {canManageDocument && (
+            <DocumentWorkflowActions
+              documentId={doc.id}
+              currentStatus={doc.status}
+            />
+          )}
         </div>
       </div>
 
@@ -87,8 +126,13 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
         <TabsContent value="versions" className="mt-3">
           <Card>
             <CardContent className="space-y-2 pt-5 text-sm">
-              {history.versions.length === 0 && <p className="text-slate-400">Sem versoes extra.</p>}
-              {history.versions.map((item) => (
+              <DocumentVersionsPanel
+                documentId={doc.id}
+                versions={versions}
+                canDelete={canManageDocument}
+                currentVersion={doc.currentVersion}
+              />
+              {false && history.versions.map((item) => (
                 <p key={item.id} className="rounded border border-slate-700 p-3">
                   v{item.versionNumber} · {item.changelog}
                 </p>
@@ -116,7 +160,7 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
               {history.audits.length === 0 && <p className="text-slate-400">Sem eventos.</p>}
               {history.audits.map((item) => (
                 <p key={item.id} className="rounded border border-slate-700 p-3">
-                  {item.event}
+                  {new Date(item.at).toLocaleString()} - {formatAuditEvent(item)}
                 </p>
               ))}
             </CardContent>

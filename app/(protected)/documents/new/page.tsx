@@ -17,6 +17,14 @@ export default function NewDocumentPage() {
       <CardContent>
         <DocumentForm
           onSubmit={async (values, mainFile) => {
+            if (!mainFile) {
+              pushToast({
+                id: crypto.randomUUID(),
+                title: "Ficheiro obrigatorio",
+                description: "Debes adjuntar un ficheiro para criar o documento.",
+              });
+              return;
+            }
             const formData = new FormData();
             formData.append("title", values.title);
             formData.append("summary", values.summary);
@@ -24,12 +32,11 @@ export default function NewDocumentPage() {
               formData.append("categoryId", values.categoryId);
             }
             formData.append("department", values.department);
+            formData.append("versionNumber", String(values.versionNumber));
             if (values.internalNotes) {
               formData.append("internalNotes", values.internalNotes);
             }
-            if (mainFile) {
-              formData.append("mainFile", mainFile, mainFile.name);
-            }
+            formData.append("mainFile", mainFile, mainFile.name);
 
             const response = await fetch("/api/documents", {
               method: "POST",

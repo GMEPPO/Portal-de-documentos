@@ -2,6 +2,7 @@ export type UserRole = "viewer" | "editor" | "manager" | "admin";
 
 export type DocumentStatus =
   | "in_review"
+  | "updating"
   | "published";
 
 export interface AppUser {
@@ -51,4 +52,12 @@ export interface DocumentCommentRecord {
 export interface DocumentCategory {
   id: string;
   name: string;
+}
+
+export interface DocumentAuditRecord {
+  id: string;
+  event: string;
+  actorId: string;
+  at: string;
+  metadata?: Record<string, unknown> | null;
 }

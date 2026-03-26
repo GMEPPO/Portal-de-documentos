@@ -7,6 +7,7 @@ import {
 } from "@/lib/rbac";
 import type {
   AppUser,
+  DocumentAuditRecord,
   DocumentCommentRecord,
   DocumentRecord,
   DocumentVersionRecord,
@@ -22,7 +23,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 const documentsStore: DocumentRecord[] = [];
 const versionsStore: DocumentVersionRecord[] = [];
 const commentsStore: DocumentCommentRecord[] = [];
-const auditStore: { id: string; event: string; at: string; actorId: string }[] = [];
+const auditStore: DocumentAuditRecord[] = [];
 
 function mapDocumentRow(row: any): DocumentRecord {
   return {
@@ -70,8 +71,18 @@ function mapCommentRow(row: any): DocumentCommentRecord {
   };
 }
 
-function logAudit(event: string, actorId: string) {
-  auditStore.push({ id: randomUUID(), event, actorId, at: new Date().toISOString() });
+function logAudit(
+  event: string,
+  actorId: string,
+  metadata?: Record<string, unknown> | null,
+) {
+  auditStore.push({
+    id: randomUUID(),
+    event,
+    actorId,
+    at: new Date().toISOString(),
+    metadata: metadata ?? null,
+  });
 }
 
 export function listCategories() {
@@ -193,7 +204,7 @@ export async function createDocument(
     updatedAt: now,
   };
   documentsStore.unshift(doc);
-  logAudit(`document.created:${doc.id}`, actor.id);
+  logAudit(`document.created:${doc.id}`, actor.id, { documentId: doc.id });
   return doc;
 }
 
@@ -265,7 +276,7 @@ export async function updateDocument(
     throw new Error("Transicion de estado no permitida.");
   }
   Object.assign(doc, parsed, { updatedAt: new Date().toISOString() });
-  logAudit(`document.updated:${doc.id}`, actor.id);
+  logAudit(`document.updated:${doc.id}`, actor.id, { documentId: doc.id });
   return doc;
 }
 
@@ -325,7 +336,7 @@ export async function addComment(
     createdAt: now,
   };
   commentsStore.push(comment);
-  logAudit(`document.comment:${documentId}`, actor.id);
+  logAudit(`document.comment:${documentId}`, actor.id, { documentId });
   return comment;
 }
 
@@ -352,15 +363,19 @@ export async function addVersion(
 
     if (!current) throw new Error("Documento no encontrado.");
 
-    const nextVersion = (current.current_version ?? 0) + 1;
     const versionId = randomUUID();
+    const targetVersion = parsed.versionNumber;
+
+    if (targetVersion <= (current.current_version ?? 0)) {
+      throw new Error("La nueva version debe ser superior a la actual.");
+    }
 
     const { data: versionRow, error: verErr } = await supabase
       .from("document_versions")
       .insert({
         id: versionId,
         document_id: documentId,
-        version_number: nextVersion,
+        version_number: targetVersion,
         file_path: parsed.filePath,
         changelog: parsed.changelog,
         created_by: actor.id,
@@ -376,7 +391,7 @@ export async function addVersion(
     const { error: updErr } = await supabase
       .from("documents")
       .update({
-        current_version: nextVersion,
+        current_version: targetVersion,
         main_file_path: parsed.filePath,
         preview_file_path: parsed.previewFilePath ?? null,
         updated_at: now,
@@ -391,7 +406,7 @@ export async function addVersion(
       id: randomUUID(),
       event: `document.version:${documentId}`,
       actor_id: actor.id,
-      metadata: { documentId, versionId, nextVersion },
+      metadata: { documentId, versionId, nextVersion: targetVersion },
       created_at: now,
     });
 
@@ -404,18 +419,25 @@ export async function addVersion(
   const version: DocumentVersionRecord = {
     id: randomUUID(),
     documentId,
-    versionNumber: doc.currentVersion + 1,
+    versionNumber: parsed.versionNumber,
     changelog: parsed.changelog,
     filePath: parsed.filePath,
     createdBy: actor.id,
     createdAt: now,
   };
+  if (version.versionNumber <= doc.currentVersion) {
+    throw new Error("La nueva version debe ser superior a la actual.");
+  }
   versionsStore.unshift(version);
   doc.currentVersion = version.versionNumber;
   doc.mainFilePath = parsed.filePath;
   doc.previewFilePath = parsed.previewFilePath;
   doc.updatedAt = now;
-  logAudit(`document.version:${documentId}`, actor.id);
+  logAudit(`document.version:${documentId}`, actor.id, {
+    documentId,
+    versionNumber: version.versionNumber,
+    filePath: version.filePath,
+  });
   return version;
 }
 
@@ -442,7 +464,7 @@ export async function listDocumentHistory(documentId: string) {
       .order("created_at", { ascending: false }),
     supabase
       .from("audit_logs")
-      .select("id,event,created_at,actor_id")
+      .select("id,event,created_at,actor_id,metadata")
       .contains("metadata", { documentId })
       .order("created_at", { ascending: false }),
   ]);
@@ -465,6 +487,85 @@ export async function listDocumentHistory(documentId: string) {
       event: item.event,
       actorId: item.actor_id,
       at: item.created_at,
+      metadata: item.metadata ?? null,
     })),
   };
+}
+
+export async function deleteVersion(
+  documentId: string,
+  versionId: string,
+  actor: AppUser,
+) {
+  if (!canUploadVersion(actor.role)) {
+    throw new Error("No autorizado para eliminar versiones.");
+  }
+
+  const supabase = createSupabaseServerClient();
+  const now = new Date().toISOString();
+
+  if (supabase) {
+    const { data: currentDoc, error: docErr } = await supabase
+      .from("documents")
+      .select("id,current_version")
+      .eq("id", documentId)
+      .maybeSingle();
+
+    if (docErr) throw new Error(docErr.message);
+    if (!currentDoc) throw new Error("Documento no encontrado.");
+
+    const { data: versionRow, error: verErr } = await supabase
+      .from("document_versions")
+      .select("*")
+      .eq("id", versionId)
+      .eq("document_id", documentId)
+      .maybeSingle();
+
+    if (verErr) throw new Error(verErr.message);
+    if (!versionRow) throw new Error("Version no encontrada.");
+    if (versionRow.version_number === currentDoc.current_version) {
+      throw new Error("No se puede eliminar la version actual del documento.");
+    }
+
+    const { error: delErr } = await supabase
+      .from("document_versions")
+      .delete()
+      .eq("id", versionId)
+      .eq("document_id", documentId);
+
+    if (delErr) throw new Error(delErr.message);
+
+    await supabase.from("audit_logs").insert({
+      id: randomUUID(),
+      event: `document.version.deleted:${documentId}`,
+      actor_id: actor.id,
+      metadata: {
+        documentId,
+        versionId,
+        versionNumber: versionRow.version_number,
+        filePath: versionRow.file_path,
+      },
+      created_at: now,
+    });
+
+    return mapVersionRow(versionRow);
+  }
+
+  const doc = documentsStore.find((item) => item.id === documentId);
+  if (!doc) throw new Error("Documento no encontrado.");
+  const index = versionsStore.findIndex(
+    (item) => item.id === versionId && item.documentId === documentId,
+  );
+  if (index === -1) throw new Error("Version no encontrada.");
+  if (versionsStore[index].versionNumber === doc.currentVersion) {
+    throw new Error("No se puede eliminar la version actual del documento.");
+  }
+  const [deleted] = versionsStore.splice(index, 1);
+  logAudit(`document.version.deleted:${documentId}`, actor.id, {
+    documentId,
+    versionId: deleted.id,
+    versionNumber: deleted.versionNumber,
+    filePath: deleted.filePath,
+  });
+  return deleted;
 }

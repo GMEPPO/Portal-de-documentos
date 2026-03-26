@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { addVersion } from "@/lib/documents-service";
+import { addVersion, updateDocument } from "@/lib/documents-service";
 import { requireAuth } from "@/lib/auth";
-import { versionSchema } from "@/lib/validations";
+import { documentStatusSchema, versionSchema } from "@/lib/validations";
 import { deleteDocumentFile, uploadDocumentFile } from "@/lib/storage-service";
 import { getMainFileObjectPath } from "@/lib/storage-path";
 
@@ -23,6 +23,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
       const uploaded = await uploadDocumentFile(objectPath, file);
       uploadedPaths = [uploaded.path];
 
+      const statusAfterUpload =
+        typeof form.get("statusAfterUpload") === "string"
+          ? documentStatusSchema.parse(form.get("statusAfterUpload"))
+          : null;
+
+      if (statusAfterUpload === "published" && !file.name.toLowerCase().endsWith(".pdf")) {
+        throw new Error("Para publicar, debes adjuntar un PDF.");
+      }
+
       const version = await addVersion(
         params.id,
         versionSchema.parse({
@@ -31,9 +40,33 @@ export async function POST(request: Request, { params }: { params: { id: string 
               ? form.get("changelog")
               : "Nova versao do documento",
           filePath: uploaded.path,
+          versionNumber:
+            typeof form.get("versionNumber") === "string"
+              ? Number(form.get("versionNumber"))
+              : 1,
         }),
         user,
       );
+
+      if (statusAfterUpload) {
+        await updateDocument(
+          params.id,
+          {
+            summary:
+              typeof form.get("summary") === "string" ? form.get("summary") : undefined,
+            department:
+              typeof form.get("department") === "string"
+                ? form.get("department")
+                : undefined,
+            internalNotes:
+              typeof form.get("internalNotes") === "string"
+                ? form.get("internalNotes")
+                : undefined,
+            status: statusAfterUpload,
+          },
+          user,
+        );
+      }
 
       return NextResponse.json({ data: version }, { status: 201 });
     }

@@ -18,7 +18,7 @@ create table if not exists documents (
   summary text not null,
   category_id uuid references document_categories(id),
   department text not null,
-  status text not null check (status in ('in_review', 'published')),
+  status text not null check (status in ('in_review', 'updating', 'published')),
   current_version int not null default 1,
   author_id uuid references users(id),
   owner_id uuid references users(id),
@@ -39,6 +39,9 @@ create table if not exists document_versions (
   created_by uuid references users(id),
   created_at timestamptz default now()
 );
+
+create unique index if not exists document_versions_document_id_version_number_idx
+on document_versions(document_id, version_number);
 
 create table if not exists document_comments (
   id uuid primary key,

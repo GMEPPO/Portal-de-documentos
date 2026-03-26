@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const documentStatusSchema = z.enum([
   "in_review",
+  "updating",
   "published",
 ]);
 
@@ -10,6 +11,7 @@ export const documentCreateSchema = z.object({
   summary: z.string().min(8).max(1000),
   categoryId: z.string().optional().default(""),
   department: z.string().min(2).max(100),
+  versionNumber: z.coerce.number().int().positive(),
   ownerId: z.string().optional(),
   tags: z.array(z.string().min(1)).default([]),
   internalNotes: z.string().max(2000).optional(),
@@ -26,6 +28,7 @@ export const commentSchema = z.object({
 export const versionSchema = z.object({
   changelog: z.string().min(3).max(1000),
   filePath: z.string().min(1),
+  versionNumber: z.coerce.number().int().positive(),
   previewFilePath: z.string().min(1).optional(),
 });
 

@@ -33,11 +33,13 @@ export function canManageUsers(role: UserRole) {
 
 const transitionMap: Record<DocumentStatus, DocumentStatus[]> = {
   in_review: ["published"],
-  published: ["in_review"],
+  updating: ["published"],
+  published: ["updating"],
 };
 
 export const documentStatusLabels: Record<DocumentStatus, string> = {
   in_review: "Em revisao",
+  updating: "Em atualizacao",
   published: "Publicado",
 };
 
