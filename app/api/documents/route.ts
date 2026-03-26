@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { addVersion, createDocument, listDocuments } from "@/lib/documents-service";
 import { requireAuth } from "@/lib/auth";
 import { canAccessDocumentStatus } from "@/lib/rbac";
-import { deleteDocumentFile } from "@/lib/storage-service";
-import { uploadDocumentAssets } from "@/lib/document-upload-service";
+import { deleteDocumentFile, uploadDocumentFile } from "@/lib/storage-service";
 import { versionSchema } from "@/lib/validations";
+import { getMainFileObjectPath } from "@/lib/storage-path";
 import { parseDepartmentTitleVersion } from "@/lib/document-name-parser";
 import { createSupabaseServiceServerClient } from "@/lib/supabase-service-server";
 
@@ -68,14 +68,14 @@ export async function POST(request: Request) {
       createdDocumentId = doc.id;
 
       if (file) {
-        const uploaded = await uploadDocumentAssets(doc.id, file);
-        uploadedPaths = uploaded.uploadedPaths;
+        const objectPath = getMainFileObjectPath(doc.id, file.name);
+        const uploaded = await uploadDocumentFile(objectPath, file);
+        uploadedPaths = [uploaded.path];
 
         // Primera versión = fichero principal
         const versionPayload = versionSchema.parse({
           changelog: `Inicial (${initialVersionNumber ? `V${String(initialVersionNumber).padStart(3, "0")}` : "V?"}) - upload do ficheiro principal`,
-          filePath: uploaded.mainFilePath,
-          previewFilePath: uploaded.previewFilePath,
+          filePath: uploaded.path,
         });
 
         // Si el nombre trae V###, creamos el documento con la versión inicial correspondiente.

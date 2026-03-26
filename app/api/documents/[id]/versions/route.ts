@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { addVersion } from "@/lib/documents-service";
 import { requireAuth } from "@/lib/auth";
 import { versionSchema } from "@/lib/validations";
-import { uploadDocumentAssets } from "@/lib/document-upload-service";
-import { deleteDocumentFile } from "@/lib/storage-service";
+import { deleteDocumentFile, uploadDocumentFile } from "@/lib/storage-service";
+import { getMainFileObjectPath } from "@/lib/storage-path";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const user = await requireAuth();
@@ -19,8 +19,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
         return NextResponse.json({ error: "Ficheiro obrigatorio." }, { status: 400 });
       }
 
-      const uploaded = await uploadDocumentAssets(params.id, file);
-      uploadedPaths = uploaded.uploadedPaths;
+      const objectPath = getMainFileObjectPath(params.id, file.name);
+      const uploaded = await uploadDocumentFile(objectPath, file);
+      uploadedPaths = [uploaded.path];
 
       const version = await addVersion(
         params.id,
@@ -29,8 +30,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
             typeof form.get("changelog") === "string"
               ? form.get("changelog")
               : "Nova versao do documento",
-          filePath: uploaded.mainFilePath,
-          previewFilePath: uploaded.previewFilePath,
+          filePath: uploaded.path,
         }),
         user,
       );
