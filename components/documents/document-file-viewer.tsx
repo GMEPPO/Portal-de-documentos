@@ -20,7 +20,7 @@ export function DocumentFileViewer({
           <p className="text-sm font-medium text-slate-100">Documento principal</p>
           <p className="text-xs text-slate-400">
             {pdf
-              ? "Leitura embebida na web. Para procurar texto no PDF, usa Ctrl+F na visualizacao."
+              ? "Leitura embebida na web. PDFs e Word convertidos para PDF podem ser pesquisados com Ctrl+F."
               : "Este formato pode ser aberto numa nova aba para consulta."}
           </p>
         </div>

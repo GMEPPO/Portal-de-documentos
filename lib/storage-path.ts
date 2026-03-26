@@ -23,3 +23,12 @@ export function getMainFileObjectPath(
   return `${documentId}/main/${safeFilename}`;
 }
 
+export function getPreviewFileObjectPath(
+  documentId: string,
+  originalFilename: string,
+) {
+  const hash = shortHash(originalFilename);
+  const safeFilename = `${documentId}-preview-${hash}.pdf`;
+  return `${documentId}/preview/${safeFilename}`;
+}
+

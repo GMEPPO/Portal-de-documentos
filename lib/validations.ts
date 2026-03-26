@@ -1,12 +1,8 @@
 import { z } from "zod";
 
 export const documentStatusSchema = z.enum([
-  "draft",
   "in_review",
-  "approved",
   "published",
-  "archived",
-  "rejected",
 ]);
 
 export const documentCreateSchema = z.object({
@@ -30,6 +26,7 @@ export const commentSchema = z.object({
 export const versionSchema = z.object({
   changelog: z.string().min(3).max(1000),
   filePath: z.string().min(1),
+  previewFilePath: z.string().min(1).optional(),
 });
 
 export type DocumentCreateInput = z.infer<typeof documentCreateSchema>;

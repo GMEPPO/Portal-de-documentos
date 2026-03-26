@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { addVersion, createDocument, listDocuments } from "@/lib/documents-service";
 import { requireAuth } from "@/lib/auth";
 import { canAccessDocumentStatus } from "@/lib/rbac";
-import { deleteDocumentFile, uploadDocumentFile } from "@/lib/storage-service";
+import { deleteDocumentFile } from "@/lib/storage-service";
+import { uploadDocumentAssets } from "@/lib/document-upload-service";
 import { versionSchema } from "@/lib/validations";
-import { getMainFileObjectPath } from "@/lib/storage-path";
 import { parseDepartmentTitleVersion } from "@/lib/document-name-parser";
 import { createSupabaseServiceServerClient } from "@/lib/supabase-service-server";
 
@@ -19,7 +19,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await requireAuth();
   let createdDocumentId: string | null = null;
-  let uploadedPath: string | null = null;
+  let uploadedPaths: string[] = [];
   try {
     const contentType = request.headers.get("content-type") ?? "";
 
@@ -68,14 +68,14 @@ export async function POST(request: Request) {
       createdDocumentId = doc.id;
 
       if (file) {
-        const objectPath = getMainFileObjectPath(doc.id, file.name);
-        const uploaded = await uploadDocumentFile(objectPath, file);
-        uploadedPath = uploaded.path;
+        const uploaded = await uploadDocumentAssets(doc.id, file);
+        uploadedPaths = uploaded.uploadedPaths;
 
         // Primera versión = fichero principal
         const versionPayload = versionSchema.parse({
           changelog: `Inicial (${initialVersionNumber ? `V${String(initialVersionNumber).padStart(3, "0")}` : "V?"}) - upload do ficheiro principal`,
-          filePath: uploaded.path,
+          filePath: uploaded.mainFilePath,
+          previewFilePath: uploaded.previewFilePath,
         });
 
         // Si el nombre trae V###, creamos el documento con la versión inicial correspondiente.
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
         await supabase.from("documents").delete().eq("id", createdDocumentId);
       }
     }
-    if (uploadedPath) {
+    for (const uploadedPath of uploadedPaths.reverse()) {
       try {
         await deleteDocumentFile(uploadedPath);
       } catch {

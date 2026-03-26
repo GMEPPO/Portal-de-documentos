@@ -19,10 +19,11 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
   if (!canAccessDocumentStatus(user.role, doc.status)) notFound();
   const history = await listDocumentHistory(doc.id);
   const allowedTransitions = getAllowedTransitions(user.role, doc.status);
-  const fileUrl = doc.mainFilePath
-    ? await getDocumentFileSignedUrl(doc.mainFilePath)
+  const readableFilePath = doc.previewFilePath ?? doc.mainFilePath;
+  const fileUrl = readableFilePath
+    ? await getDocumentFileSignedUrl(readableFilePath)
     : null;
-  const mainFilename = doc.mainFilePath?.split("/").pop() ?? doc.title;
+  const readableFilename = readableFilePath?.split("/").pop() ?? doc.title;
 
   return (
     <div className="space-y-6">
@@ -68,7 +69,7 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
         </CardHeader>
         <CardContent>
           {fileUrl ? (
-            <DocumentFileViewer fileUrl={fileUrl} filename={mainFilename} />
+            <DocumentFileViewer fileUrl={fileUrl} filename={readableFilename} />
           ) : (
             <div className="rounded-lg border border-dashed border-slate-700 p-6 text-sm text-slate-400">
               Ainda nao existe ficheiro principal associado a este documento.

@@ -1,12 +1,8 @@
 export type UserRole = "viewer" | "editor" | "manager" | "admin";
 
 export type DocumentStatus =
-  | "draft"
   | "in_review"
-  | "approved"
-  | "published"
-  | "archived"
-  | "rejected";
+  | "published";
 
 export interface AppUser {
   id: string;
@@ -27,6 +23,7 @@ export interface DocumentRecord {
   authorId: string;
   ownerId: string;
   mainFilePath?: string;
+  previewFilePath?: string;
   tags: string[];
   internalNotes?: string;
   createdAt: string;

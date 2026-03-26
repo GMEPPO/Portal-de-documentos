@@ -36,6 +36,7 @@ function mapDocumentRow(row: any): DocumentRecord {
     authorId: row.author_id ?? row.authorId,
     ownerId: row.owner_id ?? row.ownerId,
     mainFilePath: row.main_file_path ?? row.mainFilePath ?? undefined,
+    previewFilePath: row.preview_file_path ?? row.previewFilePath ?? undefined,
     tags: row.tags ?? [],
     internalNotes: row.internal_notes ?? row.internalNotes ?? undefined,
     createdAt: row.created_at ?? row.createdAt,
@@ -142,11 +143,12 @@ export async function createDocument(
         // si no es UUID real, lo guardamos como NULL.
         category_id: looksLikeUuid(parsed.categoryId) ? parsed.categoryId : null,
         department: parsed.department,
-        status: "draft",
+        status: "in_review",
         current_version: initialCurrentVersion,
         author_id: actor.id,
         owner_id: parsed.ownerId ?? actor.id,
         main_file_path: null,
+        preview_file_path: null,
         tags: parsed.tags ?? [],
         internal_notes: parsed.internalNotes ?? null,
         created_at: now,
@@ -180,10 +182,11 @@ export async function createDocument(
     summary: parsed.summary,
     categoryId: parsed.categoryId,
     department: parsed.department,
-    status: "draft",
+    status: "in_review",
     currentVersion: initialCurrentVersion,
     authorId: actor.id,
     ownerId: parsed.ownerId ?? actor.id,
+    previewFilePath: undefined,
     tags: parsed.tags ?? [],
     internalNotes: parsed.internalNotes,
     createdAt: now,
@@ -375,6 +378,7 @@ export async function addVersion(
       .update({
         current_version: nextVersion,
         main_file_path: parsed.filePath,
+        preview_file_path: parsed.previewFilePath ?? null,
         updated_at: now,
       })
       .eq("id", documentId);
@@ -409,6 +413,7 @@ export async function addVersion(
   versionsStore.unshift(version);
   doc.currentVersion = version.versionNumber;
   doc.mainFilePath = parsed.filePath;
+  doc.previewFilePath = parsed.previewFilePath;
   doc.updatedAt = now;
   logAudit(`document.version:${documentId}`, actor.id);
   return version;

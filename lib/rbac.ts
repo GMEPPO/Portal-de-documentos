@@ -32,21 +32,13 @@ export function canManageUsers(role: UserRole) {
 }
 
 const transitionMap: Record<DocumentStatus, DocumentStatus[]> = {
-  draft: ["in_review", "archived"],
-  in_review: ["approved", "rejected", "draft"],
-  approved: ["published", "archived"],
-  published: ["archived"],
-  archived: ["draft"],
-  rejected: ["draft", "archived"],
+  in_review: ["published"],
+  published: ["in_review"],
 };
 
 export const documentStatusLabels: Record<DocumentStatus, string> = {
-  draft: "Rascunho",
   in_review: "Em revisao",
-  approved: "Aprovado",
   published: "Publicado",
-  archived: "Arquivado",
-  rejected: "Rejeitado",
 };
 
 export function canTransitionStatus(
