@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { documentStatusSchema, versionSchema } from "@/lib/validations";
 import { deleteDocumentFile, uploadDocumentFile } from "@/lib/storage-service";
 import { getMainFileObjectPath } from "@/lib/storage-path";
+import { getDocumentFileType } from "@/lib/document-file";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const user = await requireAuth();
@@ -15,8 +16,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
       const form = await request.formData();
       const mainFile = form.get("mainFile");
       const file = mainFile instanceof File ? mainFile : null;
+      const fileType = file ? getDocumentFileType(file.name) : null;
       if (!file) {
         return NextResponse.json({ error: "Ficheiro obrigatorio." }, { status: 400 });
+      }
+      if (!fileType) {
+        return NextResponse.json(
+          { error: "Formato nao suportado. Usa PDF, MP4 ou MP3." },
+          { status: 400 },
+        );
       }
 
       const objectPath = getMainFileObjectPath(params.id, file.name);
@@ -28,10 +36,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
           ? documentStatusSchema.parse(form.get("statusAfterUpload"))
           : null;
 
-      if (statusAfterUpload === "published" && !file.name.toLowerCase().endsWith(".pdf")) {
-        throw new Error("Para publicar, debes adjuntar un PDF.");
-      }
-
       const version = await addVersion(
         params.id,
         versionSchema.parse({
@@ -40,6 +44,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
               ? form.get("changelog")
               : "Nova versao do documento",
           filePath: uploaded.path,
+          fileType,
           versionNumber:
             typeof form.get("versionNumber") === "string"
               ? Number(form.get("versionNumber"))

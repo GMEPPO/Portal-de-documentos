@@ -12,7 +12,7 @@ export function SelectTrigger({
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        "flex h-10 w-full items-center justify-between rounded-md border border-slate-700 bg-slate-900 px-3 text-sm",
+        "flex h-10 w-full items-center justify-between rounded-md border border-slate-700 bg-slate-900 px-3 text-sm text-slate-100",
         className,
       )}
       {...props}
@@ -32,7 +32,10 @@ export function SelectContent({
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
-        className={cn("rounded-md border border-slate-700 bg-slate-800 p-1", className)}
+        className={cn(
+          "z-50 rounded-md border border-slate-700 bg-slate-800 p-1 text-slate-100 shadow-xl",
+          className,
+        )}
         {...props}
       >
         <SelectPrimitive.Viewport>{props.children}</SelectPrimitive.Viewport>
@@ -48,7 +51,7 @@ export function SelectItem({
   return (
     <SelectPrimitive.Item
       className={cn(
-        "cursor-pointer rounded-sm px-3 py-2 text-sm outline-none hover:bg-slate-700",
+        "cursor-pointer rounded-sm px-3 py-2 text-sm text-slate-100 outline-none hover:bg-slate-700 focus:bg-slate-700",
         className,
       )}
       {...props}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DocumentDeleteButton } from "@/components/documents/document-delete-button";
 import { DocumentFileViewer } from "@/components/documents/document-file-viewer";
 import { DocumentVersionsPanel } from "@/components/documents/document-versions-panel";
 import { DocumentWorkflowActions } from "@/components/documents/document-workflow-actions";
@@ -70,13 +71,16 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
           <p className="text-slate-400">{doc.summary}</p>
         </div>
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2 xl:justify-end">
+          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
             <DocumentStatusBadge status={doc.status} />
             <Badge>{doc.currentVersion > 0 ? `v${doc.currentVersion}` : "-"}</Badge>
             {canManageDocument && (
               <Button asChild variant="outline">
                 <Link href={`/documents/${doc.id}/edit?mode=update`}>Editar</Link>
               </Button>
+            )}
+            {canManageDocument && (
+              <DocumentDeleteButton documentId={doc.id} documentTitle={doc.title} />
             )}
           </div>
           {canManageDocument && (
@@ -96,6 +100,7 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
         <CardContent className="grid gap-2 text-sm text-slate-300 md:grid-cols-2">
           <p>Departamento: {doc.department}</p>
           <p>Categoria: {doc.categoryId ? getCategoryNameById(doc.categoryId) : "Sem categoria"}</p>
+          <p>Tipo: {doc.documentType}</p>
           <p>Responsavel: {doc.ownerId}</p>
           <p>Disponivel para todos: {doc.status === "published" ? "Sim" : "Nao"}</p>
           <p>Atualizado: {new Date(doc.updatedAt).toLocaleString()}</p>
@@ -109,7 +114,11 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
         </CardHeader>
         <CardContent>
           {fileUrl ? (
-            <DocumentFileViewer fileUrl={fileUrl} filename={readableFilename} />
+            <DocumentFileViewer
+              fileUrl={fileUrl}
+              filename={readableFilename}
+              fileType={doc.documentType}
+            />
           ) : (
             <div className="rounded-lg border border-dashed border-slate-700 p-6 text-sm text-slate-400">
               Ainda nao existe ficheiro principal associado a este documento.
@@ -133,11 +142,6 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
                 canDelete={canManageDocument}
                 currentVersion={doc.currentVersion}
               />
-              {false && history.versions.map((item) => (
-                <p key={item.id} className="rounded border border-slate-700 p-3">
-                  v{item.versionNumber} · {item.changelog}
-                </p>
-              ))}
             </CardContent>
           </Card>
         </TabsContent>

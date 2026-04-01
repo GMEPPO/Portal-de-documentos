@@ -29,6 +29,23 @@ export async function deleteDocumentFile(path: string) {
   }
 }
 
+export async function deleteDocumentFiles(paths: string[]) {
+  const uniquePaths = Array.from(new Set(paths.filter(Boolean)));
+  if (uniquePaths.length === 0) {
+    return;
+  }
+
+  const supabase = createSupabaseServerClient();
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase.storage.from(BUCKET).remove(uniquePaths);
+  if (error) {
+    throw error;
+  }
+}
+
 export async function getDocumentFileSignedUrl(path: string, expiresIn = 3600) {
   const supabase = createSupabaseServerClient();
   if (!supabase) {

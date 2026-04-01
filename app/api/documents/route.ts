@@ -7,6 +7,7 @@ import { versionSchema } from "@/lib/validations";
 import { getMainFileObjectPath } from "@/lib/storage-path";
 import { parseDepartmentTitleVersion } from "@/lib/document-name-parser";
 import { createSupabaseServiceServerClient } from "@/lib/supabase-service-server";
+import { getDocumentFileType } from "@/lib/document-file";
 
 export async function GET() {
   const user = await requireAuth();
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
       const form = await request.formData();
       const mainFile = form.get("mainFile");
       const file = mainFile instanceof File ? mainFile : null;
+      const fileType = file ? getDocumentFileType(file.name) : null;
 
       const payload = {
         title: typeof form.get("title") === "string" ? form.get("title") : "",
@@ -74,6 +76,9 @@ export async function POST(request: Request) {
       if (!file) {
         throw new Error("Debes adjuntar un ficheiro para criar o documento.");
       }
+      if (!fileType) {
+        throw new Error("Formato nao suportado. Usa PDF, MP4 ou MP3.");
+      }
 
       if (file) {
         const objectPath = getMainFileObjectPath(doc.id, file.name);
@@ -84,6 +89,7 @@ export async function POST(request: Request) {
         const versionPayload = versionSchema.parse({
           changelog: `Inicial (${initialVersionNumber ? `V${String(initialVersionNumber).padStart(3, "0")}` : "V?"}) - upload do ficheiro principal`,
           filePath: uploaded.path,
+          fileType,
           versionNumber: initialVersionNumber,
         });
 

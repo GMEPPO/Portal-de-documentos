@@ -6,11 +6,20 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DocumentFilePicker } from "@/components/documents/document-file-picker";
 import { documentCreateSchema, type DocumentCreateInput } from "@/lib/validations";
 import { pushToast } from "@/components/ui/toaster";
 import type { DocumentStatus } from "@/lib/types";
+import { getDocumentFileType, getDocumentFileTypeLabel } from "@/lib/document-file";
+import { departmentOptions } from "@/lib/constants";
 
 export function DocumentVersionForm({
   documentId,
@@ -59,11 +68,12 @@ export function DocumentVersionForm({
           return;
         }
 
-        if (mode === "publish" && !mainFile.name.toLowerCase().endsWith(".pdf")) {
+        const fileType = getDocumentFileType(mainFile.name);
+        if (!fileType) {
           pushToast({
             id: crypto.randomUUID(),
-            title: "PDF obrigatorio",
-            description: "Para publicar, debes subir un PDF.",
+            title: "Formato nao suportado",
+            description: "Usa apenas ficheiros PDF, MP4 ou MP3.",
           });
           return;
         }
@@ -105,7 +115,7 @@ export function DocumentVersionForm({
           title: mode === "publish" ? "Documento publicado" : "Versao carregada",
           description:
             mode === "publish"
-              ? "O PDF foi publicado com sucesso."
+              ? `${getDocumentFileTypeLabel(fileType)} publicado com sucesso.`
               : "A nova versao ficou em atualizacao.",
         });
         router.push(`/documents/${documentId}`);
@@ -129,7 +139,26 @@ export function DocumentVersionForm({
         </div>
       )}
       <Textarea placeholder="Resumo tecnico" {...form.register("summary")} />
-      <Input placeholder="Departamento" {...form.register("department")} />
+      <Select
+        value={form.watch("department") || "__none__"}
+        onValueChange={(value) =>
+          form.setValue("department", value === "__none__" ? "" : value, {
+            shouldValidate: true,
+          })
+        }
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Departamento" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">Seleciona um departamento</SelectItem>
+          {departmentOptions.map((department) => (
+            <SelectItem key={department} value={department}>
+              {department}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Input
         type="number"
         min={1}
@@ -139,7 +168,7 @@ export function DocumentVersionForm({
       <Textarea placeholder="Notas internas" {...form.register("internalNotes")} />
       <DocumentFilePicker onFileChange={setMainFile} />
       <Button type="submit">
-        {mode === "publish" ? "Publicar PDF" : "Guardar nova versao"}
+        {mode === "publish" ? "Publicar conteudo" : "Guardar nova versao"}
       </Button>
     </form>
   );

@@ -1,5 +1,15 @@
 import type { AppUser, DocumentCategory } from "@/lib/types";
 
+export const departmentOptions = [
+  "DSI",
+  "APOIO A CLIENTES",
+  "COMPRAS",
+  "COMERCIAL",
+  "EPPO",
+  "FINANCEIRO",
+  "COMUNICAÇÃO",
+] as const;
+
 export const mockUsers: AppUser[] = [
   {
     id: "u-admin",

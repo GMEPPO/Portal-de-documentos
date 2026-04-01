@@ -7,9 +7,11 @@ import { cn } from "@/lib/utils";
 export function DocumentFilePicker({
   onFileChange,
   className,
+  acceptedFileTypesLabel = "PDF, MP4 ou MP3",
 }: {
   onFileChange: (file: File | null) => void;
   className?: string;
+  acceptedFileTypesLabel?: string;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -46,7 +48,7 @@ export function DocumentFilePicker({
         <div className="min-w-0">
           <p className="text-sm font-medium">Adjuntar ficheiro</p>
           <p className="text-xs text-slate-400">
-            Arrasta y suelta aquí o selecciona un fichero
+            Arrasta e larga aqui ou seleciona um ficheiro. Formatos: {acceptedFileTypesLabel}
           </p>
           {fileName && (
             <p className="mt-2 truncate text-xs text-slate-300">{fileName}</p>
@@ -66,6 +68,7 @@ export function DocumentFilePicker({
         <input
           ref={inputRef}
           type="file"
+          accept=".pdf,.mp4,.mp3"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0] ?? null;
@@ -87,4 +90,3 @@ export function DocumentFilePicker({
     </div>
   );
 }
-

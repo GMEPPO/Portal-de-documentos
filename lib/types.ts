@@ -5,6 +5,8 @@ export type DocumentStatus =
   | "updating"
   | "published";
 
+export type DocumentFileType = "document" | "video" | "audio";
+
 export interface AppUser {
   id: string;
   name: string;
@@ -20,6 +22,7 @@ export interface DocumentRecord {
   categoryId: string;
   department: string;
   status: DocumentStatus;
+  documentType: DocumentFileType;
   currentVersion: number;
   authorId: string;
   ownerId: string;
@@ -35,6 +38,7 @@ export interface DocumentVersionRecord {
   id: string;
   documentId: string;
   versionNumber: number;
+  fileType: DocumentFileType;
   filePath: string;
   changelog: string;
   createdBy: string;

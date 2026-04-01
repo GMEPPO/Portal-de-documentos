@@ -27,7 +27,7 @@ export function DocumentWorkflowActions({
 
       {currentStatus === "in_review" && (
         <Button asChild>
-          <Link href={`/documents/${documentId}/edit?mode=publish`}>Publicar PDF</Link>
+          <Link href={`/documents/${documentId}/edit?mode=publish`}>Publicar conteudo</Link>
         </Button>
       )}
 

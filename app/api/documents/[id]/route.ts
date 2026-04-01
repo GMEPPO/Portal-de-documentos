@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { getDocumentById, updateDocument } from "@/lib/documents-service";
+import { deleteDocument, getDocumentById, updateDocument } from "@/lib/documents-service";
 import { requireAuth } from "@/lib/auth";
-import { canAccessDocumentStatus } from "@/lib/rbac";
+import { canAccessDocumentStatus, canEditDocument } from "@/lib/rbac";
+import { deleteDocumentFiles } from "@/lib/storage-service";
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   const user = await requireAuth();
@@ -21,6 +22,24 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   try {
     const doc = await updateDocument(params.id, body, user);
     return NextResponse.json({ data: doc });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Erro inesperado." },
+      { status: 400 },
+    );
+  }
+}
+
+export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+  const user = await requireAuth();
+  if (!canEditDocument(user.role)) {
+    return NextResponse.json({ error: "No autorizado." }, { status: 403 });
+  }
+
+  try {
+    const deleted = await deleteDocument(params.id, user);
+    await deleteDocumentFiles(deleted.paths);
+    return NextResponse.json({ data: deleted.document });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Erro inesperado." },

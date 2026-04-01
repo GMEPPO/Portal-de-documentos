@@ -9,6 +9,7 @@ import type {
   AppUser,
   DocumentAuditRecord,
   DocumentCommentRecord,
+  DocumentFileType,
   DocumentRecord,
   DocumentVersionRecord,
 } from "@/lib/types";
@@ -33,6 +34,7 @@ function mapDocumentRow(row: any): DocumentRecord {
     categoryId: row.category_id ?? row.categoryId ?? "",
     department: row.department,
     status: row.status,
+    documentType: row.document_type ?? row.documentType ?? "document",
     currentVersion: row.current_version ?? row.currentVersion,
     authorId: row.author_id ?? row.authorId,
     ownerId: row.owner_id ?? row.ownerId,
@@ -54,6 +56,7 @@ function mapVersionRow(row: any): DocumentVersionRecord {
     id: row.id,
     documentId: row.document_id ?? row.documentId,
     versionNumber: row.version_number ?? row.versionNumber,
+    fileType: row.file_type ?? row.fileType ?? "document",
     filePath: row.file_path ?? row.filePath,
     changelog: row.changelog,
     createdBy: row.created_by ?? row.createdBy,
@@ -141,6 +144,7 @@ export async function createDocument(
       : null;
   const initialCurrentVersion =
     parsedInitialVersion !== null ? parsedInitialVersion - 1 : 0;
+  const initialDocumentType: DocumentFileType = "document";
 
   if (supabase) {
     // Persistencia en DB
@@ -155,6 +159,7 @@ export async function createDocument(
         category_id: looksLikeUuid(parsed.categoryId) ? parsed.categoryId : null,
         department: parsed.department,
         status: "in_review",
+        document_type: initialDocumentType,
         current_version: initialCurrentVersion,
         author_id: actor.id,
         owner_id: parsed.ownerId ?? actor.id,
@@ -194,6 +199,7 @@ export async function createDocument(
     categoryId: parsed.categoryId,
     department: parsed.department,
     status: "in_review",
+    documentType: initialDocumentType,
     currentVersion: initialCurrentVersion,
     authorId: actor.id,
     ownerId: parsed.ownerId ?? actor.id,
@@ -246,6 +252,7 @@ export async function updateDocument(
             : undefined,
         department: parsed.department ?? undefined,
         status: parsed.status ?? undefined,
+        document_type: parsed.documentType ?? undefined,
         tags: parsed.tags ?? undefined,
         internal_notes: parsed.internalNotes ?? undefined,
         updated_at: now,
@@ -376,6 +383,7 @@ export async function addVersion(
         id: versionId,
         document_id: documentId,
         version_number: targetVersion,
+        file_type: parsed.fileType,
         file_path: parsed.filePath,
         changelog: parsed.changelog,
         created_by: actor.id,
@@ -391,6 +399,7 @@ export async function addVersion(
     const { error: updErr } = await supabase
       .from("documents")
       .update({
+        document_type: parsed.fileType,
         current_version: targetVersion,
         main_file_path: parsed.filePath,
         preview_file_path: parsed.previewFilePath ?? null,
@@ -420,6 +429,7 @@ export async function addVersion(
     id: randomUUID(),
     documentId,
     versionNumber: parsed.versionNumber,
+    fileType: parsed.fileType,
     changelog: parsed.changelog,
     filePath: parsed.filePath,
     createdBy: actor.id,
@@ -430,6 +440,7 @@ export async function addVersion(
   }
   versionsStore.unshift(version);
   doc.currentVersion = version.versionNumber;
+  doc.documentType = parsed.fileType;
   doc.mainFilePath = parsed.filePath;
   doc.previewFilePath = parsed.previewFilePath;
   doc.updatedAt = now;
@@ -489,6 +500,91 @@ export async function listDocumentHistory(documentId: string) {
       at: item.created_at,
       metadata: item.metadata ?? null,
     })),
+  };
+}
+
+export async function deleteDocument(documentId: string, actor: AppUser) {
+  if (!canEditDocument(actor.role)) {
+    throw new Error("No autorizado para eliminar documentos.");
+  }
+
+  const supabase = createSupabaseServerClient();
+  if (supabase) {
+    const { data: currentDoc, error: docErr } = await supabase
+      .from("documents")
+      .select("*")
+      .eq("id", documentId)
+      .maybeSingle();
+
+    if (docErr) throw new Error(docErr.message);
+    if (!currentDoc) throw new Error("Documento no encontrado.");
+
+    const { data: versionRows, error: versionsErr } = await supabase
+      .from("document_versions")
+      .select("*")
+      .eq("document_id", documentId);
+
+    if (versionsErr) throw new Error(versionsErr.message);
+
+    const paths = [
+      currentDoc.main_file_path,
+      currentDoc.preview_file_path,
+      ...(versionRows ?? []).map((row) => row.file_path),
+    ].filter((value): value is string => Boolean(value));
+
+    const { error: auditErr } = await supabase
+      .from("audit_logs")
+      .delete()
+      .contains("metadata", { documentId });
+
+    if (auditErr) throw new Error(auditErr.message);
+
+    const { error: deleteErr } = await supabase
+      .from("documents")
+      .delete()
+      .eq("id", documentId);
+
+    if (deleteErr) throw new Error(deleteErr.message);
+
+    return {
+      document: mapDocumentRow(currentDoc),
+      versions: (versionRows ?? []).map(mapVersionRow),
+      paths,
+    };
+  }
+
+  const docIndex = documentsStore.findIndex((item) => item.id === documentId);
+  if (docIndex === -1) throw new Error("Documento no encontrado.");
+
+  const [deletedDoc] = documentsStore.splice(docIndex, 1);
+  const deletedVersions = versionsStore.filter((item) => item.documentId === documentId);
+
+  for (let index = versionsStore.length - 1; index >= 0; index -= 1) {
+    if (versionsStore[index].documentId === documentId) {
+      versionsStore.splice(index, 1);
+    }
+  }
+
+  for (let index = commentsStore.length - 1; index >= 0; index -= 1) {
+    if (commentsStore[index].documentId === documentId) {
+      commentsStore.splice(index, 1);
+    }
+  }
+
+  for (let index = auditStore.length - 1; index >= 0; index -= 1) {
+    if (auditStore[index].metadata?.documentId === documentId) {
+      auditStore.splice(index, 1);
+    }
+  }
+
+  return {
+    document: deletedDoc,
+    versions: deletedVersions,
+    paths: [
+      deletedDoc.mainFilePath,
+      deletedDoc.previewFilePath,
+      ...deletedVersions.map((item) => item.filePath),
+    ].filter((value): value is string => Boolean(value)),
   };
 }
 

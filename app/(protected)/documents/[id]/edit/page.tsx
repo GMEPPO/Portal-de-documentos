@@ -29,7 +29,7 @@ export default async function EditDocumentPage({
         <CardTitle>{mode === "publish" ? "Publicar documento" : "Atualizar documento"}</CardTitle>
         <CardDescription>
           {mode === "publish"
-            ? "Sube o PDF final para publicar a versao atual."
+            ? "Sube um PDF, MP4 ou MP3 final para publicar a versao atual."
             : "Carrega una nova versao do documento mantendo o mesmo nome."}
         </CardDescription>
       </CardHeader>

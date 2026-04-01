@@ -16,6 +16,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { DocumentFilePicker } from "@/components/documents/document-file-picker";
 import type { DocumentCategory } from "@/lib/types";
+import { getDocumentFileType } from "@/lib/document-file";
+import { pushToast } from "@/components/ui/toaster";
+import { departmentOptions } from "@/lib/constants";
 
 export function DocumentForm({
   onSubmit,
@@ -43,6 +46,15 @@ export function DocumentForm({
     <form
       className="space-y-4"
       onSubmit={form.handleSubmit(async (values) => {
+        if (mainFile && !getDocumentFileType(mainFile.name)) {
+          pushToast({
+            id: crypto.randomUUID(),
+            title: "Formato nao suportado",
+            description: "Usa apenas ficheiros PDF, MP4 ou MP3.",
+          });
+          return;
+        }
+
         await onSubmit(values, mainFile);
         form.reset();
         setMainFile(null);
@@ -70,7 +82,26 @@ export function DocumentForm({
           ))}
         </SelectContent>
       </Select>
-      <Input placeholder="Departamento" {...form.register("department")} />
+      <Select
+        value={form.watch("department") || "__none__"}
+        onValueChange={(value) =>
+          form.setValue("department", value === "__none__" ? "" : value, {
+            shouldValidate: true,
+          })
+        }
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Departamento" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">Seleciona um departamento</SelectItem>
+          {departmentOptions.map((department) => (
+            <SelectItem key={department} value={department}>
+              {department}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Input
         type="number"
         min={1}
