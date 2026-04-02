@@ -13,7 +13,7 @@ export async function uploadDocumentAssets(documentId: string, file: File) {
 
     let previewPath: string | undefined;
     let previewError: string | undefined;
-    let previewFile: File | undefined;
+    let previewFile: File | null = null;
     let searchText = "";
     let searchIndexWarning: string | undefined;
 
