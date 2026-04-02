@@ -45,7 +45,7 @@ export default async function DocumentsPage({
   });
 
   const searchResults = query
-    ? (await searchDocumentsByQuery(query, user)).filter((result) => {
+    ? (await searchDocumentsByQuery(query, user, filteredDocuments)).filter((result) => {
         const statusMatches =
           !selectedStatus || result.document.status === selectedStatus;
         const categoryMatches =
@@ -59,10 +59,7 @@ export default async function DocumentsPage({
     : [];
 
   const showingSearchResults =
-    query.length > 0 ||
-    selectedStatus.length > 0 ||
-    selectedCategory.length > 0 ||
-    selectedDepartment.length > 0;
+    query.length > 0;
 
   const statusOptions: DocumentStatus[] = ["in_review", "updating", "published"];
 

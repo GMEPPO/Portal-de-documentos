@@ -1,5 +1,6 @@
 import { inflateRawSync, inflateSync } from "zlib";
 import { getCategoryNameById } from "@/lib/constants";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { listDocuments } from "@/lib/documents-service";
 import { canAccessDocumentStatus } from "@/lib/rbac";
 import { downloadDocumentFile } from "@/lib/storage-service";
@@ -363,24 +364,47 @@ async function getPublishedSearchText(document: DocumentRecord) {
   }
 }
 
-export async function searchDocumentsByQuery(query: string, user: AppUser) {
+async function persistSearchText(documentId: string, searchText: string) {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return;
+
+  try {
+    await supabase
+      .from("documents")
+      .update({
+        search_text: searchText,
+        search_text_updated_at: new Date().toISOString(),
+      })
+      .eq("id", documentId);
+  } catch {
+    // noop
+  }
+}
+
+export async function searchDocumentsByQuery(
+  query: string,
+  user: AppUser,
+  sourceDocuments?: DocumentRecord[],
+) {
   const trimmedQuery = query.trim();
   if (!trimmedQuery) {
     return [];
   }
 
-  const documents = (await listDocuments()).filter((document) =>
-    canAccessDocumentStatus(user.role, document.status),
-  );
+  const documents = sourceDocuments
+    ? sourceDocuments
+    : (await listDocuments()).filter((document) =>
+        canAccessDocumentStatus(user.role, document.status),
+      );
 
   const publishedDocuments = documents.filter((document) => document.status === "published");
+  const normalizedQuery = normalizeForSearch(trimmedQuery);
 
   const matches = await Promise.all(
     publishedDocuments.map(async (document) => {
       const title = document.title ?? "";
       const summary = document.summary ?? "";
       const category = document.categoryId ? getCategoryNameById(document.categoryId) : "";
-      const normalizedQuery = normalizeForSearch(trimmedQuery);
 
       if (normalizeForSearch(title).includes(normalizedQuery)) {
         return {
@@ -399,7 +423,21 @@ export async function searchDocumentsByQuery(query: string, user: AppUser) {
         };
       }
 
+      const indexedSearchText = document.searchText?.trim() ?? "";
+      if (indexedSearchText && normalizeForSearch(indexedSearchText).includes(normalizedQuery)) {
+        return {
+          document,
+          snippet: buildSnippet(indexedSearchText, trimmedQuery),
+          matchedIn: "content" as const,
+        };
+      }
+
       const extractedText = await getPublishedSearchText(document);
+      if (extractedText.trim()) {
+        document.searchText = extractedText;
+        void persistSearchText(document.id, extractedText);
+      }
+
       if (normalizeForSearch(extractedText).includes(normalizedQuery)) {
         return {
           document,

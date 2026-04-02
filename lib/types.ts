@@ -28,6 +28,7 @@ export interface DocumentRecord {
   ownerId: string;
   mainFilePath?: string;
   previewFilePath?: string;
+  searchText?: string;
   tags: string[];
   internalNotes?: string;
   createdAt: string;
