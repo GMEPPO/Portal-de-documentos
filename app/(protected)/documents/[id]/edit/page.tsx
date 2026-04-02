@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireAuth } from "@/lib/auth";
 import { getDocumentById } from "@/lib/documents-service";
 import { canEditDocument } from "@/lib/rbac";
-import { getDocumentFileSignedUrl } from "@/lib/storage-service";
 
 export default async function EditDocumentPage({
   params,
@@ -14,18 +13,15 @@ export default async function EditDocumentPage({
   searchParams?: { mode?: string };
 }) {
   const user = await requireAuth();
-  const doc = await getDocumentById(params.id);
+  let doc = null;
+  try {
+    doc = await getDocumentById(params.id);
+  } catch {
+    doc = null;
+  }
   if (!doc) notFound();
   if (!canEditDocument(user.role)) notFound();
   const mode = searchParams?.mode === "publish" ? "publish" : "update";
-  let currentFileUrl: string | null = null;
-  if (doc.mainFilePath) {
-    try {
-      currentFileUrl = await getDocumentFileSignedUrl(doc.mainFilePath);
-    } catch {
-      currentFileUrl = null;
-    }
-  }
   const currentFilename = doc.mainFilePath?.split("/").pop() ?? null;
 
   return (
@@ -52,7 +48,7 @@ export default async function EditDocumentPage({
                 ? doc.currentVersion
                 : doc.currentVersion + 1,
             currentStatus: doc.status,
-            currentFileUrl,
+            currentFileUrl: null,
             currentFilename,
           }}
         />
