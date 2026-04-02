@@ -42,7 +42,11 @@ export default async function EditDocumentPage({
             summary: doc.summary,
             department: doc.department,
             internalNotes: doc.internalNotes,
-            nextVersionNumber: doc.currentVersion + 1,
+            nextVersionNumber:
+              mode === "publish" && doc.status === "in_review"
+                ? doc.currentVersion
+                : doc.currentVersion + 1,
+            currentStatus: doc.status,
             currentFileUrl,
             currentFilename,
           }}

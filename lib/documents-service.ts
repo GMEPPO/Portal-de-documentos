@@ -452,6 +452,131 @@ export async function addVersion(
   return version;
 }
 
+export async function replaceCurrentVersion(
+  documentId: string,
+  payload: unknown,
+  actor: AppUser,
+): Promise<DocumentVersionRecord> {
+  if (!canUploadVersion(actor.role)) {
+    throw new Error("No autorizado para sustituir la version actual.");
+  }
+
+  const parsed = versionSchema.parse(payload);
+  const supabase = createSupabaseServerClient();
+  const now = new Date().toISOString();
+
+  if (supabase) {
+    const { data: currentDoc, error: docErr } = await supabase
+      .from("documents")
+      .select("id,current_version,status")
+      .eq("id", documentId)
+      .maybeSingle();
+
+    if (docErr) throw new Error(docErr.message);
+    if (!currentDoc) throw new Error("Documento no encontrado.");
+    if (currentDoc.status !== "in_review") {
+      throw new Error("Solo se puede sustituir la version actual en revision.");
+    }
+
+    const targetVersion = parsed.versionNumber;
+    if (targetVersion !== (currentDoc.current_version ?? 0)) {
+      throw new Error("A publicacao deve manter a versao atual do documento.");
+    }
+
+    const { data: existingRow, error: existingErr } = await supabase
+      .from("document_versions")
+      .select("*")
+      .eq("document_id", documentId)
+      .eq("version_number", targetVersion)
+      .maybeSingle();
+
+    if (existingErr) throw new Error(existingErr.message);
+    if (!existingRow) {
+      return addVersion(documentId, payload, actor);
+    }
+
+    const { data: updatedRow, error: updateErr } = await supabase
+      .from("document_versions")
+      .update({
+        file_type: parsed.fileType,
+        file_path: parsed.filePath,
+        changelog: parsed.changelog,
+        created_by: actor.id,
+        created_at: now,
+      })
+      .eq("id", existingRow.id)
+      .eq("document_id", documentId)
+      .select("*")
+      .single();
+
+    if (updateErr || !updatedRow) {
+      throw new Error(updateErr?.message ?? "Error al sustituir version.");
+    }
+
+    const { error: docUpdateErr } = await supabase
+      .from("documents")
+      .update({
+        document_type: parsed.fileType,
+        main_file_path: parsed.filePath,
+        preview_file_path: parsed.previewFilePath ?? null,
+        updated_at: now,
+      })
+      .eq("id", documentId);
+
+    if (docUpdateErr) {
+      throw new Error(docUpdateErr.message);
+    }
+
+    await supabase.from("audit_logs").insert({
+      id: randomUUID(),
+      event: `document.version.replaced:${documentId}`,
+      actor_id: actor.id,
+      metadata: { documentId, versionId: existingRow.id, versionNumber: targetVersion },
+      created_at: now,
+    });
+
+    return mapVersionRow(updatedRow);
+  }
+
+  const doc = documentsStore.find((item) => item.id === documentId);
+  if (!doc) throw new Error("Documento no encontrado.");
+  if (doc.status !== "in_review") {
+    throw new Error("Solo se puede sustituir la version actual en revision.");
+  }
+  if (parsed.versionNumber !== doc.currentVersion) {
+    throw new Error("A publicacao deve manter a versao atual do documento.");
+  }
+
+  const existing = versionsStore.find(
+    (item) =>
+      item.documentId === documentId && item.versionNumber === parsed.versionNumber,
+  );
+
+  if (!existing) {
+    return addVersion(documentId, payload, actor);
+  }
+
+  existing.fileType = parsed.fileType;
+  existing.filePath = parsed.filePath;
+  existing.changelog = parsed.changelog;
+  existing.createdBy = actor.id;
+  existing.createdAt = now;
+
+  doc.documentType = parsed.fileType;
+  doc.mainFilePath = parsed.filePath;
+  doc.previewFilePath = parsed.previewFilePath;
+  doc.updatedAt = now;
+
+  logAudit(`document.version.replaced:${documentId}`, actor.id, {
+    documentId,
+    versionId: existing.id,
+    versionNumber: existing.versionNumber,
+    filePath: existing.filePath,
+  });
+
+  return existing;
+}
+
 export async function listDocumentHistory(documentId: string) {
   const supabase = createSupabaseServerClient();
   if (!supabase) {

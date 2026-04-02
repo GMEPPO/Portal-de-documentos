@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { addVersion, updateDocument } from "@/lib/documents-service";
+import {
+  addVersion,
+  getDocumentById,
+  replaceCurrentVersion,
+  updateDocument,
+} from "@/lib/documents-service";
 import { requireAuth } from "@/lib/auth";
 import { documentStatusSchema, versionSchema } from "@/lib/validations";
 import { deleteDocumentFiles } from "@/lib/storage-service";
@@ -37,23 +42,31 @@ export async function POST(request: Request, { params }: { params: { id: string 
           ? documentStatusSchema.parse(form.get("statusAfterUpload"))
           : null;
 
-      const version = await addVersion(
-        params.id,
-        versionSchema.parse({
-          changelog:
-            typeof form.get("changelog") === "string"
-              ? form.get("changelog")
-              : "Nova versao do documento",
-          filePath: uploaded.mainFilePath,
-          fileType,
-          previewFilePath: uploaded.previewFilePath,
-          versionNumber:
-            typeof form.get("versionNumber") === "string"
-              ? Number(form.get("versionNumber"))
-              : 1,
-        }),
-        user,
-      );
+      const versionPayload = versionSchema.parse({
+        changelog:
+          typeof form.get("changelog") === "string"
+            ? form.get("changelog")
+            : "Nova versao do documento",
+        filePath: uploaded.mainFilePath,
+        fileType,
+        previewFilePath: uploaded.previewFilePath,
+        versionNumber:
+          typeof form.get("versionNumber") === "string"
+            ? Number(form.get("versionNumber"))
+            : 1,
+      });
+
+      const currentDoc = await getDocumentById(params.id);
+      if (!currentDoc) {
+        return NextResponse.json({ error: "Documento no encontrado." }, { status: 404 });
+      }
+
+      const shouldReplaceCurrentVersion =
+        statusAfterUpload === "published" && currentDoc.status === "in_review";
+
+      const version = shouldReplaceCurrentVersion
+        ? await replaceCurrentVersion(params.id, versionPayload, user)
+        : await addVersion(params.id, versionPayload, user);
 
       if (statusAfterUpload) {
         await updateDocument(

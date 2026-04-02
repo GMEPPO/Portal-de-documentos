@@ -33,6 +33,7 @@ export function DocumentVersionForm({
     "title" | "summary" | "department" | "internalNotes"
   > & {
     nextVersionNumber: number;
+    currentStatus: DocumentStatus;
     currentFileUrl?: string | null;
     currentFilename?: string | null;
   };
@@ -54,6 +55,8 @@ export function DocumentVersionForm({
   });
 
   const targetStatus: DocumentStatus = mode === "publish" ? "published" : "updating";
+  const isPublishingReviewedVersion =
+    mode === "publish" && initialValues.currentStatus === "in_review";
 
   return (
     <form
@@ -163,8 +166,14 @@ export function DocumentVersionForm({
         type="number"
         min={1}
         placeholder="Versao"
+        readOnly={isPublishingReviewedVersion}
         {...form.register("versionNumber", { valueAsNumber: true })}
       />
+      {isPublishingReviewedVersion && (
+        <p className="text-xs text-slate-400">
+          Ao publicar um documento em revisao, a plataforma mantem a versao atual.
+        </p>
+      )}
       <Textarea placeholder="Notas internas" {...form.register("internalNotes")} />
       <DocumentFilePicker onFileChange={setMainFile} />
       <Button type="submit">
