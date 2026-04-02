@@ -11,6 +11,13 @@ type SearchResult = {
   matchedIn: "title" | "summary" | "content";
 };
 
+function normalizeForSearch(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 function isPdfPath(path?: string | null) {
   return Boolean(path && path.toLowerCase().endsWith(".pdf"));
 }
@@ -122,6 +129,36 @@ function extractLiteralStrings(content: string) {
   return strings;
 }
 
+function decodeHexString(input: string) {
+  const cleaned = input.replace(/[^0-9a-fA-F]/g, "");
+  if (cleaned.length < 2) {
+    return "";
+  }
+
+  const evenHex = cleaned.length % 2 === 0 ? cleaned : `${cleaned}0`;
+  const bytes = Buffer.from(evenHex, "hex");
+
+  const utf16beChars: string[] = [];
+  if (bytes.length >= 2) {
+    for (let index = 0; index + 1 < bytes.length; index += 2) {
+      const code = bytes.readUInt16BE(index);
+      if (code !== 0) {
+        utf16beChars.push(String.fromCharCode(code));
+      }
+    }
+  }
+
+  const utf16be = utf16beChars.join("").trim();
+  const latin = bytes.toString("latin1").replace(/\u0000/g, "").trim();
+  return utf16be.length >= latin.length ? utf16be : latin;
+}
+
+function extractHexStrings(content: string) {
+  return Array.from(content.matchAll(/<([0-9a-fA-F\s]+)>/g))
+    .map((match) => decodeHexString(match[1] ?? ""))
+    .filter((item) => item.trim().length > 1);
+}
+
 function inflatePdfStream(streamBuffer: Buffer) {
   try {
     return inflateSync(streamBuffer).toString("latin1");
@@ -145,7 +182,7 @@ function extractTextFromPdfBuffer(buffer: Buffer) {
 
     const streamBuffer = Buffer.from(rawStream, "latin1");
     const decoded = inflatePdfStream(streamBuffer);
-    const strings = extractLiteralStrings(decoded)
+    const strings = [...extractLiteralStrings(decoded), ...extractHexStrings(decoded)]
       .map((item) => item.replace(/\s+/g, " ").trim())
       .filter(Boolean);
 
@@ -158,8 +195,8 @@ function extractTextFromPdfBuffer(buffer: Buffer) {
 }
 
 function buildSnippet(text: string, query: string) {
-  const normalizedText = text.toLowerCase();
-  const normalizedQuery = query.toLowerCase();
+  const normalizedText = normalizeForSearch(text);
+  const normalizedQuery = normalizeForSearch(query);
   const matchIndex = normalizedText.indexOf(normalizedQuery);
 
   if (matchIndex === -1) {
@@ -210,8 +247,9 @@ export async function searchDocumentsByQuery(query: string, user: AppUser) {
       const title = document.title ?? "";
       const summary = document.summary ?? "";
       const category = document.categoryId ? getCategoryNameById(document.categoryId) : "";
+      const normalizedQuery = normalizeForSearch(trimmedQuery);
 
-      if (title.toLowerCase().includes(trimmedQuery.toLowerCase())) {
+      if (normalizeForSearch(title).includes(normalizedQuery)) {
         return {
           document,
           snippet: buildSnippet(summary || title, trimmedQuery),
@@ -220,7 +258,7 @@ export async function searchDocumentsByQuery(query: string, user: AppUser) {
       }
 
       const searchableSummary = `${summary} ${category}`.trim();
-      if (searchableSummary.toLowerCase().includes(trimmedQuery.toLowerCase())) {
+      if (normalizeForSearch(searchableSummary).includes(normalizedQuery)) {
         return {
           document,
           snippet: buildSnippet(searchableSummary, trimmedQuery),
@@ -229,7 +267,7 @@ export async function searchDocumentsByQuery(query: string, user: AppUser) {
       }
 
       const extractedText = await getPublishedSearchText(document);
-      if (extractedText.toLowerCase().includes(trimmedQuery.toLowerCase())) {
+      if (normalizeForSearch(extractedText).includes(normalizedQuery)) {
         return {
           document,
           snippet: buildSnippet(extractedText, trimmedQuery),

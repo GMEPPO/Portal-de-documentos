@@ -39,13 +39,16 @@ export default async function DocumentsPage({
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-4">
-          <form className="md:col-span-4" action="/documents">
-            <div className="flex flex-col gap-3 md:flex-row">
-              <Input
-                name="q"
-                defaultValue={query}
-                placeholder="Pesquisar titulo ou palavras dentro de documentos publicados..."
-              />
+          <form className="contents" action="/documents">
+            <Input
+              name="q"
+              defaultValue={query}
+              placeholder="Pesquisar titulo ou palavras dentro de documentos publicados..."
+            />
+            <Input placeholder="Estado" disabled />
+            <Input placeholder="Categoria" disabled />
+            <Input placeholder="Departamento" disabled />
+            <div className="md:col-span-4 flex flex-col gap-3 md:flex-row">
               <Button type="submit">Pesquisar</Button>
               {showingSearchResults && (
                 <Button asChild type="button" variant="outline">
