@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { DocumentsFilters } from "@/components/documents/documents-filters";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Table, TBody, TD, TH, THead } from "@/components/ui/table";
 import { requireAuth } from "@/lib/auth";
 import { departmentOptions, mockCategories } from "@/lib/constants";
@@ -82,58 +82,25 @@ export default async function DocumentsPage({
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-4">
-          <form className="contents" action="/documents">
-            <Input
-              name="q"
-              defaultValue={query}
-              placeholder="Pesquisar titulo ou palavras dentro de documentos publicados..."
-            />
-            <select
-              name="status"
-              defaultValue={selectedStatus}
-              className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <option value="">Estado</option>
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {documentStatusLabels[status]}
-                </option>
-              ))}
-            </select>
-            <select
-              name="category"
-              defaultValue={selectedCategory}
-              className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <option value="">Categoria</option>
-              {mockCategories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-            <select
-              name="department"
-              defaultValue={selectedDepartment}
-              className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <option value="">Departamento</option>
-              {departmentOptions.map((department) => (
-                <option key={department} value={department}>
-                  {department}
-                </option>
-              ))}
-            </select>
-            <div className="md:col-span-4 flex flex-col gap-3 md:flex-row">
-              <Button type="submit">Pesquisar</Button>
-              {showingSearchResults && (
-                <Button asChild type="button" variant="outline">
-                  <Link href="/documents">Limpar</Link>
-                </Button>
-              )}
-            </div>
-          </form>
+        <CardContent>
+          <DocumentsFilters
+            initialQuery={query}
+            initialStatus={selectedStatus}
+            initialCategory={selectedCategory}
+            initialDepartment={selectedDepartment}
+            statuses={statusOptions.map((status) => ({
+              value: status,
+              label: documentStatusLabels[status],
+            }))}
+            categories={mockCategories.map((category) => ({
+              value: category.id,
+              label: category.name,
+            }))}
+            departments={departmentOptions.map((department) => ({
+              value: department,
+              label: department,
+            }))}
+          />
         </CardContent>
       </Card>
 
