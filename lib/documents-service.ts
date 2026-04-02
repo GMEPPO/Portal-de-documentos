@@ -21,6 +21,7 @@ import {
   versionSchema,
 } from "@/lib/validations";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { isPdfFilename } from "@/lib/document-file";
 
 const documentsStore: DocumentRecord[] = [];
 const versionsStore: DocumentVersionRecord[] = [];
@@ -50,6 +51,16 @@ function shouldIgnoreOptionalDocumentColumnError(message?: string | null) {
     isMissingSearchIndexColumnError(message) ||
     isMissingProcessingColumnError(message)
   );
+}
+
+function getSearchProcessingDefaults(filePath: string, fileType: DocumentFileType) {
+  const filename = filePath.split("/").pop() ?? filePath;
+  const shouldIndexSearch = fileType === "document" && isPdfFilename(filename);
+
+  return {
+    previewStatus: "skipped" as const,
+    searchStatus: shouldIndexSearch ? ("pending" as const) : ("skipped" as const),
+  };
 }
 
 function mapDocumentRow(row: any): DocumentRecord {
@@ -571,6 +582,7 @@ export async function addVersion(
       throw new Error(verErr?.message ?? "Error al guardar version.");
     }
 
+    const processingDefaults = getSearchProcessingDefaults(parsed.filePath, parsed.fileType);
     const documentUpdatePayload = {
       document_type: parsed.fileType,
       current_version: targetVersion,
@@ -578,8 +590,8 @@ export async function addVersion(
       preview_file_path: parsed.previewFilePath ?? null,
       search_text: null,
       search_text_updated_at: null,
-      preview_status: parsed.fileType === "document" ? "pending" : "skipped",
-      search_status: parsed.fileType === "document" ? "pending" : "skipped",
+      preview_status: processingDefaults.previewStatus,
+      search_status: processingDefaults.searchStatus,
       preview_error: null,
       search_error: null,
       updated_at: now,
@@ -640,8 +652,9 @@ export async function addVersion(
   doc.mainFilePath = parsed.filePath;
   doc.previewFilePath = parsed.previewFilePath;
   doc.searchText = undefined;
-  doc.previewStatus = parsed.fileType === "document" ? "pending" : "skipped";
-  doc.searchStatus = parsed.fileType === "document" ? "pending" : "skipped";
+  const processingDefaults = getSearchProcessingDefaults(parsed.filePath, parsed.fileType);
+  doc.previewStatus = processingDefaults.previewStatus;
+  doc.searchStatus = processingDefaults.searchStatus;
   doc.previewError = undefined;
   doc.searchError = undefined;
   doc.updatedAt = now;
@@ -714,14 +727,15 @@ export async function replaceCurrentVersion(
       throw new Error(updateErr?.message ?? "Error al sustituir version.");
     }
 
+    const processingDefaults = getSearchProcessingDefaults(parsed.filePath, parsed.fileType);
     const replacePayload = {
       document_type: parsed.fileType,
       main_file_path: parsed.filePath,
       preview_file_path: parsed.previewFilePath ?? null,
       search_text: null,
       search_text_updated_at: null,
-      preview_status: parsed.fileType === "document" ? "pending" : "skipped",
-      search_status: parsed.fileType === "document" ? "pending" : "skipped",
+      preview_status: processingDefaults.previewStatus,
+      search_status: processingDefaults.searchStatus,
       preview_error: null,
       search_error: null,
       updated_at: now,
@@ -787,8 +801,9 @@ export async function replaceCurrentVersion(
   doc.mainFilePath = parsed.filePath;
   doc.previewFilePath = parsed.previewFilePath;
   doc.searchText = undefined;
-  doc.previewStatus = parsed.fileType === "document" ? "pending" : "skipped";
-  doc.searchStatus = parsed.fileType === "document" ? "pending" : "skipped";
+  const processingDefaults = getSearchProcessingDefaults(parsed.filePath, parsed.fileType);
+  doc.previewStatus = processingDefaults.previewStatus;
+  doc.searchStatus = processingDefaults.searchStatus;
   doc.previewError = undefined;
   doc.searchError = undefined;
   doc.updatedAt = now;

@@ -69,7 +69,7 @@ export default function NewDocumentPage() {
             pushToast({
               id: crypto.randomUUID(),
               title: "Documento criado",
-              description: "O registo foi criado com sucesso. O processamento adicional sera feito em segundo plano.",
+              description: "O registo foi criado com sucesso. A indexacao da pesquisa sera enviada ao n8n em segundo plano.",
             });
             router.push("/documents");
           }}

@@ -119,9 +119,7 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
             <DocumentProcessingPanel
               documentId={doc.id}
               fileType={doc.documentType}
-              previewStatus={doc.previewStatus}
               searchStatus={doc.searchStatus}
-              previewError={doc.previewError}
               searchError={doc.searchError}
               canRetry={
                 canManageDocument &&

@@ -14,12 +14,11 @@ export function needsDocumentProcessing(fileType: DocumentFileType) {
 
 export function shouldAutoStartDocumentProcessing(
   fileType: DocumentFileType,
-  previewStatus: DocumentProcessingStatus,
   searchStatus: DocumentProcessingStatus,
 ) {
   if (!needsDocumentProcessing(fileType)) {
     return false;
   }
 
-  return previewStatus === "pending" || searchStatus === "pending";
+  return searchStatus === "pending";
 }

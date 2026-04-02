@@ -14,17 +14,13 @@ import type { DocumentFileType, DocumentProcessingStatus } from "@/lib/types";
 export function DocumentProcessingPanel({
   documentId,
   fileType,
-  previewStatus,
   searchStatus,
-  previewError,
   searchError,
   canRetry,
 }: {
   documentId: string;
   fileType: DocumentFileType;
-  previewStatus: DocumentProcessingStatus;
   searchStatus: DocumentProcessingStatus;
-  previewError?: string;
   searchError?: string;
   canRetry: boolean;
 }) {
@@ -53,8 +49,8 @@ export function DocumentProcessingPanel({
     if (showSuccessToast) {
       pushToast({
         id: crypto.randomUUID(),
-        title: "Processamento concluido",
-        description: "O documento foi atualizado com preview e pesquisa interna disponivel.",
+        title: "Indexacao enviada",
+        description: "O pedido de indexacao foi enviado ao n8n com sucesso.",
       });
     }
 
@@ -63,30 +59,26 @@ export function DocumentProcessingPanel({
 
   useEffect(() => {
     if (autoStarted.current) return;
-    if (!shouldAutoStartDocumentProcessing(fileType, previewStatus, searchStatus)) return;
+    if (!shouldAutoStartDocumentProcessing(fileType, searchStatus)) return;
 
     autoStarted.current = true;
     void runProcessing(false);
-  }, [documentId, fileType, previewStatus, searchStatus]);
+  }, [documentId, fileType, searchStatus]);
 
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="space-y-2">
-          <p className="text-sm font-medium text-slate-100">Processamento do documento</p>
+          <p className="text-sm font-medium text-slate-100">Indexacao do documento</p>
           <div className="flex flex-wrap gap-2 text-xs">
-            <Badge>Preview: {documentProcessingStatusLabels[previewStatus]}</Badge>
             <Badge>Pesquisa: {documentProcessingStatusLabels[searchStatus]}</Badge>
           </div>
-          {previewError && <p className="text-xs text-amber-300">Preview: {previewError}</p>}
           {searchError && <p className="text-xs text-amber-300">Pesquisa: {searchError}</p>}
           {(isProcessing ||
-            previewStatus === "pending" ||
-            previewStatus === "processing" ||
             searchStatus === "pending" ||
             searchStatus === "processing") && (
             <p className="text-xs text-slate-400">
-              A plataforma esta a processar preview e pesquisa interna em segundo plano.
+              A plataforma esta a enviar ou a acompanhar a indexacao da pesquisa em segundo plano.
             </p>
           )}
         </div>
