@@ -4,7 +4,6 @@ import {
   getDocumentById,
   replaceCurrentVersion,
   updateDocument,
-  updateDocumentSearchIndex,
 } from "@/lib/documents-service";
 import { requireAuth } from "@/lib/auth";
 import { documentStatusSchema, versionSchema } from "@/lib/validations";
@@ -37,9 +36,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
       const uploaded = await uploadDocumentAssets(params.id, file);
       uploadedPaths = uploaded.uploadedPaths;
-      const warnings: string[] = [uploaded.previewError, uploaded.searchIndexWarning].filter(
-        (value): value is string => Boolean(value),
-      );
 
       const statusAfterUpload =
         typeof form.get("statusAfterUpload") === "string"
@@ -92,16 +88,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
         );
       }
 
-      try {
-        await updateDocumentSearchIndex(params.id, uploaded.searchText);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Falha ao guardar indice pesquisavel.";
-        warnings.push(message);
-      }
-
       return NextResponse.json(
-        { data: version, warning: warnings.length > 0 ? warnings.join(" ") : undefined },
+        { data: version, processingQueued: true },
         { status: 201 },
       );
     }

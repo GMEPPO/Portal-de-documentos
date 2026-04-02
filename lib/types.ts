@@ -6,6 +6,12 @@ export type DocumentStatus =
   | "published";
 
 export type DocumentFileType = "document" | "video" | "audio";
+export type DocumentProcessingStatus =
+  | "pending"
+  | "processing"
+  | "ready"
+  | "failed"
+  | "skipped";
 
 export interface AppUser {
   id: string;
@@ -29,6 +35,10 @@ export interface DocumentRecord {
   mainFilePath?: string;
   previewFilePath?: string;
   searchText?: string;
+  previewStatus: DocumentProcessingStatus;
+  searchStatus: DocumentProcessingStatus;
+  previewError?: string;
+  searchError?: string;
   tags: string[];
   internalNotes?: string;
   createdAt: string;

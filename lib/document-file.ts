@@ -17,6 +17,15 @@ export function getExtension(filename: string) {
   return index >= 0 ? normalized.slice(index) : "";
 }
 
+export function isPdfFilename(filename: string) {
+  return getExtension(filename) === ".pdf";
+}
+
+export function isWordFilename(filename: string) {
+  const extension = getExtension(filename);
+  return extension === ".doc" || extension === ".docx";
+}
+
 export function getDocumentFileType(filename: string): DocumentFileType | null {
   return EXTENSION_TO_TYPE[getExtension(filename)] ?? null;
 }

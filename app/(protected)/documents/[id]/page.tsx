@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DocumentCommentsPanel } from "@/components/documents/document-comments-panel";
 import { DocumentDeleteButton } from "@/components/documents/document-delete-button";
 import { DocumentFileViewer } from "@/components/documents/document-file-viewer";
+import { DocumentProcessingPanel } from "@/components/documents/document-processing-panel";
 import { DocumentVersionsPanel } from "@/components/documents/document-versions-panel";
 import { DocumentWorkflowActions } from "@/components/documents/document-workflow-actions";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
@@ -113,7 +114,21 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
           <CardTitle>Leitura do documento</CardTitle>
           <CardDescription>Consulta do ficheiro principal diretamente na web.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {doc.documentType === "document" && (
+            <DocumentProcessingPanel
+              documentId={doc.id}
+              fileType={doc.documentType}
+              previewStatus={doc.previewStatus}
+              searchStatus={doc.searchStatus}
+              previewError={doc.previewError}
+              searchError={doc.searchError}
+              canRetry={
+                canManageDocument &&
+                (doc.previewStatus === "failed" || doc.searchStatus === "failed")
+              }
+            />
+          )}
           {fileUrl ? (
             <DocumentFileViewer
               fileUrl={fileUrl}

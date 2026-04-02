@@ -3,7 +3,6 @@ import {
   addVersion,
   createDocument,
   listDocuments,
-  updateDocumentSearchIndex,
 } from "@/lib/documents-service";
 import { requireAuth } from "@/lib/auth";
 import { canAccessDocumentStatus } from "@/lib/rbac";
@@ -91,20 +90,8 @@ export async function POST(request: Request) {
 
       await addVersion(doc.id, versionPayload, user);
 
-      const warnings: string[] = [uploaded.previewError, uploaded.searchIndexWarning].filter(
-        (value): value is string => Boolean(value),
-      );
-
-      try {
-        await updateDocumentSearchIndex(doc.id, uploaded.searchText);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Falha ao guardar indice pesquisavel.";
-        warnings.push(message);
-      }
-
       return NextResponse.json(
-        { data: doc, warning: warnings.length > 0 ? warnings.join(" ") : undefined },
+        { data: doc, processingQueued: true },
         { status: 201 },
       );
     }

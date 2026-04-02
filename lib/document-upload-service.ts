@@ -1,28 +1,5 @@
-import { generatePreviewPdf } from "@/lib/document-preview-service";
-import { extractPdfSearchTextFromFile } from "@/lib/pdf-search-index";
-import { getMainFileObjectPath, getPreviewFileObjectPath } from "@/lib/storage-path";
+import { getMainFileObjectPath } from "@/lib/storage-path";
 import { deleteDocumentFile, uploadDocumentFile } from "@/lib/storage-service";
-
-const PREVIEW_TIMEOUT_MS = 4000;
-const SEARCH_INDEX_TIMEOUT_MS = 2000;
-const MAX_SEARCHABLE_FILE_SIZE_BYTES = 8 * 1024 * 1024;
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  }
-}
 
 export async function uploadDocumentAssets(documentId: string, file: File) {
   const mainPath = getMainFileObjectPath(documentId, file.name);
@@ -32,60 +9,9 @@ export async function uploadDocumentAssets(documentId: string, file: File) {
     await uploadDocumentFile(mainPath, file);
     uploadedPaths.push(mainPath);
 
-    let previewPath: string | undefined;
-    let previewError: string | undefined;
-    let previewFile: File | null = null;
-    let searchText = "";
-    let searchIndexWarning: string | undefined;
-
-    try {
-      previewFile = await withTimeout(
-        generatePreviewPdf(file),
-        PREVIEW_TIMEOUT_MS,
-        "A geracao do preview excedeu o tempo limite e foi ignorada.",
-      );
-
-      if (previewFile && previewFile.name !== file.name) {
-        previewPath = getPreviewFileObjectPath(documentId, previewFile.name);
-        await uploadDocumentFile(previewPath, previewFile);
-        uploadedPaths.push(previewPath);
-      }
-    } catch (error) {
-      previewError =
-        error instanceof Error ? error.message : "Falha ao gerar preview do ficheiro.";
-      console.warn("[document-upload-service] preview skipped:", previewError);
-    }
-
-    try {
-      const searchablePdf =
-        previewFile?.name?.toLowerCase().endsWith(".pdf")
-          ? previewFile
-          : file.name.toLowerCase().endsWith(".pdf")
-            ? file
-            : null;
-
-      if (searchablePdf && searchablePdf.size <= MAX_SEARCHABLE_FILE_SIZE_BYTES) {
-        searchText = await withTimeout(
-          extractPdfSearchTextFromFile(searchablePdf),
-          SEARCH_INDEX_TIMEOUT_MS,
-          "A indexacao do conteudo excedeu o tempo limite e foi ignorada.",
-        );
-      } else if (searchablePdf) {
-        searchIndexWarning =
-          "O ficheiro e demasiado grande para indexacao imediata e foi guardado sem pesquisa interna.";
-      }
-    } catch (error) {
-      searchIndexWarning =
-        error instanceof Error ? error.message : "Falha ao indexar o texto pesquisavel.";
-      console.warn("[document-upload-service] search indexing skipped:", searchIndexWarning);
-    }
-
     return {
       mainFilePath: mainPath,
-      previewFilePath: previewPath,
-      previewError,
-      searchText,
-      searchIndexWarning,
+      previewFilePath: undefined,
       uploadedPaths,
     };
   } catch (error) {

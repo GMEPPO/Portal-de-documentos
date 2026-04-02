@@ -56,10 +56,20 @@ export default function NewDocumentPage() {
               });
               return;
             }
+
+            const data = await response.json().catch(() => null);
+            const documentId = data?.data?.id as string | undefined;
+            if (documentId) {
+              void fetch(`/api/documents/${documentId}/process`, {
+                method: "POST",
+                keepalive: true,
+              }).catch(() => null);
+            }
+
             pushToast({
               id: crypto.randomUUID(),
               title: "Documento criado",
-              description: "O registo foi criado com sucesso.",
+              description: "O registo foi criado com sucesso. O processamento adicional sera feito em segundo plano.",
             });
             router.push("/documents");
           }}

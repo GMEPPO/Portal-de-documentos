@@ -10,6 +10,7 @@ import type {
   DocumentAuditRecord,
   DocumentCommentRecord,
   DocumentFileType,
+  DocumentProcessingStatus,
   DocumentRecord,
   DocumentVersionRecord,
 } from "@/lib/types";
@@ -34,6 +35,23 @@ function isMissingSearchIndexColumnError(message?: string | null) {
   );
 }
 
+function isMissingProcessingColumnError(message?: string | null) {
+  const normalizedMessage = (message ?? "").toLowerCase();
+  return (
+    normalizedMessage.includes("preview_status") ||
+    normalizedMessage.includes("search_status") ||
+    normalizedMessage.includes("preview_error") ||
+    normalizedMessage.includes("search_error")
+  );
+}
+
+function shouldIgnoreOptionalDocumentColumnError(message?: string | null) {
+  return (
+    isMissingSearchIndexColumnError(message) ||
+    isMissingProcessingColumnError(message)
+  );
+}
+
 function mapDocumentRow(row: any): DocumentRecord {
   return {
     id: row.id,
@@ -49,6 +67,10 @@ function mapDocumentRow(row: any): DocumentRecord {
     mainFilePath: row.main_file_path ?? row.mainFilePath ?? undefined,
     previewFilePath: row.preview_file_path ?? row.previewFilePath ?? undefined,
     searchText: row.search_text ?? row.searchText ?? undefined,
+    previewStatus: row.preview_status ?? row.previewStatus ?? "skipped",
+    searchStatus: row.search_status ?? row.searchStatus ?? "skipped",
+    previewError: row.preview_error ?? row.previewError ?? undefined,
+    searchError: row.search_error ?? row.searchError ?? undefined,
     tags: row.tags ?? [],
     internalNotes: row.internal_notes ?? row.internalNotes ?? undefined,
     createdAt: row.created_at ?? row.createdAt,
@@ -154,6 +176,8 @@ export async function createDocument(
   const initialCurrentVersion =
     parsedInitialVersion !== null ? parsedInitialVersion - 1 : 0;
   const initialDocumentType: DocumentFileType = "document";
+  const initialPreviewStatus: DocumentProcessingStatus = "skipped";
+  const initialSearchStatus: DocumentProcessingStatus = "skipped";
 
   if (supabase) {
     // Persistencia en DB
@@ -174,6 +198,10 @@ export async function createDocument(
         owner_id: parsed.ownerId ?? actor.id,
         main_file_path: null,
         preview_file_path: null,
+        preview_status: initialPreviewStatus,
+        search_status: initialSearchStatus,
+        preview_error: null,
+        search_error: null,
         tags: parsed.tags ?? [],
         internal_notes: parsed.internalNotes ?? null,
         created_at: now,
@@ -181,6 +209,47 @@ export async function createDocument(
       })
       .select("*")
       .single();
+
+    if (error && shouldIgnoreOptionalDocumentColumnError(error.message)) {
+      const fallbackInsert = await supabase
+        .from("documents")
+        .insert({
+          id: docId,
+          title: parsed.title,
+          summary: parsed.summary,
+          category_id: looksLikeUuid(parsed.categoryId) ? parsed.categoryId : null,
+          department: parsed.department,
+          status: "in_review",
+          document_type: initialDocumentType,
+          current_version: initialCurrentVersion,
+          author_id: actor.id,
+          owner_id: parsed.ownerId ?? actor.id,
+          main_file_path: null,
+          preview_file_path: null,
+          tags: parsed.tags ?? [],
+          internal_notes: parsed.internalNotes ?? null,
+          created_at: now,
+          updated_at: now,
+        })
+        .select("*")
+        .single();
+
+      if (fallbackInsert.error || !fallbackInsert.data) {
+        throw new Error(
+          fallbackInsert.error?.message ?? "Error al guardar el documento en la base.",
+        );
+      }
+
+      await supabase.from("audit_logs").insert({
+        id: randomUUID(),
+        event: `document.created:${docId}`,
+        actor_id: actor.id,
+        metadata: { documentId: docId },
+        created_at: now,
+      });
+
+      return mapDocumentRow(fallbackInsert.data);
+    }
 
     if (error || !data) {
       throw new Error(
@@ -214,6 +283,10 @@ export async function createDocument(
     ownerId: parsed.ownerId ?? actor.id,
     previewFilePath: undefined,
     searchText: undefined,
+    previewStatus: initialPreviewStatus,
+    searchStatus: initialSearchStatus,
+    previewError: undefined,
+    searchError: undefined,
     tags: parsed.tags ?? [],
     internalNotes: parsed.internalNotes,
     createdAt: now,
@@ -328,6 +401,63 @@ export async function updateDocumentSearchIndex(documentId: string, searchText: 
   if (!doc) throw new Error("Documento no encontrado.");
 
   doc.searchText = normalizedSearchText || undefined;
+  doc.updatedAt = now;
+  return doc;
+}
+
+export async function updateDocumentProcessingState(
+  documentId: string,
+  state: {
+    previewStatus?: DocumentProcessingStatus;
+    searchStatus?: DocumentProcessingStatus;
+    previewError?: string | null;
+    searchError?: string | null;
+    previewFilePath?: string | null;
+    searchText?: string | null;
+  },
+) {
+  const now = new Date().toISOString();
+  const supabase = createSupabaseServerClient();
+
+  if (supabase) {
+    const payload = {
+      preview_status: state.previewStatus,
+      search_status: state.searchStatus,
+      preview_error: state.previewError,
+      search_error: state.searchError,
+      preview_file_path: state.previewFilePath,
+      search_text: state.searchText,
+      search_text_updated_at:
+        state.searchText !== undefined ? (state.searchText ? now : null) : undefined,
+      updated_at: now,
+    };
+
+    const { data, error } = await supabase
+      .from("documents")
+      .update(payload)
+      .eq("id", documentId)
+      .select("*")
+      .maybeSingle();
+
+    if (error) {
+      if (shouldIgnoreOptionalDocumentColumnError(error.message)) {
+        return getDocumentById(documentId);
+      }
+      throw new Error(error.message);
+    }
+
+    return data ? mapDocumentRow(data) : null;
+  }
+
+  const doc = documentsStore.find((item) => item.id === documentId);
+  if (!doc) throw new Error("Documento no encontrado.");
+
+  if (state.previewStatus !== undefined) doc.previewStatus = state.previewStatus;
+  if (state.searchStatus !== undefined) doc.searchStatus = state.searchStatus;
+  if (state.previewError !== undefined) doc.previewError = state.previewError ?? undefined;
+  if (state.searchError !== undefined) doc.searchError = state.searchError ?? undefined;
+  if (state.previewFilePath !== undefined) doc.previewFilePath = state.previewFilePath ?? undefined;
+  if (state.searchText !== undefined) doc.searchText = state.searchText ?? undefined;
   doc.updatedAt = now;
   return doc;
 }
@@ -448,6 +578,10 @@ export async function addVersion(
       preview_file_path: parsed.previewFilePath ?? null,
       search_text: null,
       search_text_updated_at: null,
+      preview_status: parsed.fileType === "document" ? "pending" : "skipped",
+      search_status: parsed.fileType === "document" ? "pending" : "skipped",
+      preview_error: null,
+      search_error: null,
       updated_at: now,
     };
 
@@ -456,7 +590,7 @@ export async function addVersion(
       .update(documentUpdatePayload)
       .eq("id", documentId);
 
-    if (updErr && isMissingSearchIndexColumnError(updErr.message)) {
+    if (updErr && shouldIgnoreOptionalDocumentColumnError(updErr.message)) {
       ({ error: updErr } = await supabase
         .from("documents")
         .update({
@@ -506,6 +640,10 @@ export async function addVersion(
   doc.mainFilePath = parsed.filePath;
   doc.previewFilePath = parsed.previewFilePath;
   doc.searchText = undefined;
+  doc.previewStatus = parsed.fileType === "document" ? "pending" : "skipped";
+  doc.searchStatus = parsed.fileType === "document" ? "pending" : "skipped";
+  doc.previewError = undefined;
+  doc.searchError = undefined;
   doc.updatedAt = now;
   logAudit(`document.version:${documentId}`, actor.id, {
     documentId,
@@ -582,6 +720,10 @@ export async function replaceCurrentVersion(
       preview_file_path: parsed.previewFilePath ?? null,
       search_text: null,
       search_text_updated_at: null,
+      preview_status: parsed.fileType === "document" ? "pending" : "skipped",
+      search_status: parsed.fileType === "document" ? "pending" : "skipped",
+      preview_error: null,
+      search_error: null,
       updated_at: now,
     };
 
@@ -590,7 +732,7 @@ export async function replaceCurrentVersion(
       .update(replacePayload)
       .eq("id", documentId);
 
-    if (docUpdateErr && isMissingSearchIndexColumnError(docUpdateErr.message)) {
+    if (docUpdateErr && shouldIgnoreOptionalDocumentColumnError(docUpdateErr.message)) {
       ({ error: docUpdateErr } = await supabase
         .from("documents")
         .update({
@@ -645,6 +787,10 @@ export async function replaceCurrentVersion(
   doc.mainFilePath = parsed.filePath;
   doc.previewFilePath = parsed.previewFilePath;
   doc.searchText = undefined;
+  doc.previewStatus = parsed.fileType === "document" ? "pending" : "skipped";
+  doc.searchStatus = parsed.fileType === "document" ? "pending" : "skipped";
+  doc.previewError = undefined;
+  doc.searchError = undefined;
   doc.updatedAt = now;
 
   logAudit(`document.version.replaced:${documentId}`, actor.id, {

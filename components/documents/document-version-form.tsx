@@ -123,8 +123,8 @@ export function DocumentVersionForm({
             title: mode === "publish" ? "Documento publicado" : "Versao carregada",
             description:
               mode === "publish"
-                ? `${getDocumentFileTypeLabel(fileType)} publicado com sucesso.`
-                : "A nova versao ficou em atualizacao.",
+                ? `${getDocumentFileTypeLabel(fileType)} publicado com sucesso. O preview e a pesquisa interna serao processados em seguida.`
+                : "A nova versao ficou em atualizacao. O processamento complementar sera feito em seguida.",
           });
           router.push(`/documents/${documentId}`);
           router.refresh();
