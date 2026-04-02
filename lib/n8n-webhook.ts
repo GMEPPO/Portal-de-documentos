@@ -28,15 +28,23 @@ export function getN8nWebhookUrl() {
 }
 
 export async function triggerDocumentIndexingWebhook(
-  payload: DocumentIndexingWebhookPayload,
+  payload: DocumentIndexingWebhookPayload & {
+    file: Blob;
+  },
 ) {
   const webhookUrl = getN8nWebhookUrl();
+  const formData = new FormData();
+  formData.append("document_id", payload.document_id);
+  formData.append("file_path", payload.file_path);
+  formData.append("source_filename", payload.source_filename);
+  formData.append("document_type", payload.document_type);
+  formData.append("title", payload.title);
+  formData.append("version_number", String(payload.version_number));
+  formData.append("file", payload.file, payload.source_filename);
+
   const response = await fetch(webhookUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
+    body: formData,
     cache: "no-store",
   });
 
