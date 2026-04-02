@@ -289,6 +289,38 @@ export async function updateDocument(
   return doc;
 }
 
+export async function updateDocumentSearchIndex(documentId: string, searchText: string | null) {
+  const normalizedSearchText = searchText?.trim() ?? "";
+  const now = new Date().toISOString();
+  const supabase = createSupabaseServerClient();
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("documents")
+      .update({
+        search_text: normalizedSearchText || null,
+        search_text_updated_at: now,
+        updated_at: now,
+      })
+      .eq("id", documentId)
+      .select("*")
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data ? mapDocumentRow(data) : null;
+  }
+
+  const doc = documentsStore.find((item) => item.id === documentId);
+  if (!doc) throw new Error("Documento no encontrado.");
+
+  doc.searchText = normalizedSearchText || undefined;
+  doc.updatedAt = now;
+  return doc;
+}
+
 export async function addComment(
   documentId: string,
   payload: unknown,
@@ -405,6 +437,8 @@ export async function addVersion(
         current_version: targetVersion,
         main_file_path: parsed.filePath,
         preview_file_path: parsed.previewFilePath ?? null,
+        search_text: null,
+        search_text_updated_at: null,
         updated_at: now,
       })
       .eq("id", documentId);
@@ -445,6 +479,7 @@ export async function addVersion(
   doc.documentType = parsed.fileType;
   doc.mainFilePath = parsed.filePath;
   doc.previewFilePath = parsed.previewFilePath;
+  doc.searchText = undefined;
   doc.updatedAt = now;
   logAudit(`document.version:${documentId}`, actor.id, {
     documentId,
@@ -521,6 +556,8 @@ export async function replaceCurrentVersion(
         document_type: parsed.fileType,
         main_file_path: parsed.filePath,
         preview_file_path: parsed.previewFilePath ?? null,
+        search_text: null,
+        search_text_updated_at: null,
         updated_at: now,
       })
       .eq("id", documentId);
@@ -567,6 +604,7 @@ export async function replaceCurrentVersion(
   doc.documentType = parsed.fileType;
   doc.mainFilePath = parsed.filePath;
   doc.previewFilePath = parsed.previewFilePath;
+  doc.searchText = undefined;
   doc.updatedAt = now;
 
   logAudit(`document.version.replaced:${documentId}`, actor.id, {

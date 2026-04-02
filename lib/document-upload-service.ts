@@ -1,4 +1,5 @@
 import { generatePreviewPdf } from "@/lib/document-preview-service";
+import { extractPdfSearchTextFromFile } from "@/lib/pdf-search-index";
 import { getMainFileObjectPath, getPreviewFileObjectPath } from "@/lib/storage-path";
 import { deleteDocumentFile, uploadDocumentFile } from "@/lib/storage-service";
 
@@ -12,9 +13,12 @@ export async function uploadDocumentAssets(documentId: string, file: File) {
 
     let previewPath: string | undefined;
     let previewError: string | undefined;
+    let previewFile: File | undefined;
+    let searchText = "";
+    let searchIndexWarning: string | undefined;
 
     try {
-      const previewFile = await generatePreviewPdf(file);
+      previewFile = await generatePreviewPdf(file);
 
       if (previewFile && previewFile.name !== file.name) {
         previewPath = getPreviewFileObjectPath(documentId, previewFile.name);
@@ -27,10 +31,29 @@ export async function uploadDocumentAssets(documentId: string, file: File) {
       console.warn("[document-upload-service] preview skipped:", previewError);
     }
 
+    try {
+      const searchablePdf =
+        previewFile?.name?.toLowerCase().endsWith(".pdf")
+          ? previewFile
+          : file.name.toLowerCase().endsWith(".pdf")
+            ? file
+            : null;
+
+      if (searchablePdf) {
+        searchText = await extractPdfSearchTextFromFile(searchablePdf);
+      }
+    } catch (error) {
+      searchIndexWarning =
+        error instanceof Error ? error.message : "Falha ao indexar o texto pesquisavel.";
+      console.warn("[document-upload-service] search indexing skipped:", searchIndexWarning);
+    }
+
     return {
       mainFilePath: mainPath,
       previewFilePath: previewPath,
       previewError,
+      searchText,
+      searchIndexWarning,
       uploadedPaths,
     };
   } catch (error) {
