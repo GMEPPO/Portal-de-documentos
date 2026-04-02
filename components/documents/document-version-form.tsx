@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,11 +16,20 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DocumentFilePicker } from "@/components/documents/document-file-picker";
-import { documentCreateSchema, type DocumentCreateInput } from "@/lib/validations";
 import { pushToast } from "@/components/ui/toaster";
 import type { DocumentStatus } from "@/lib/types";
 import { getDocumentFileType, getDocumentFileTypeLabel } from "@/lib/document-file";
 import { departmentOptions } from "@/lib/constants";
+
+const documentVersionFormSchema = z.object({
+  title: z.string().min(4).max(180),
+  summary: z.string().min(8).max(1000),
+  department: z.string().min(2).max(100),
+  versionNumber: z.coerce.number().int().positive(),
+  internalNotes: z.string().max(2000).optional(),
+});
+
+type DocumentVersionFormInput = z.infer<typeof documentVersionFormSchema>;
 
 export function DocumentVersionForm({
   documentId,
@@ -28,10 +38,7 @@ export function DocumentVersionForm({
 }: {
   documentId: string;
   mode: "update" | "publish";
-  initialValues: Pick<
-    DocumentCreateInput,
-    "title" | "summary" | "department" | "internalNotes"
-  > & {
+  initialValues: Pick<DocumentVersionFormInput, "title" | "summary" | "department" | "internalNotes"> & {
     nextVersionNumber: number;
     currentStatus: DocumentStatus;
     currentFileUrl?: string | null;
@@ -40,16 +47,13 @@ export function DocumentVersionForm({
 }) {
   const router = useRouter();
   const [mainFile, setMainFile] = useState<File | null>(null);
-  const form = useForm<DocumentCreateInput>({
-    resolver: zodResolver(documentCreateSchema),
+  const form = useForm<DocumentVersionFormInput>({
+    resolver: zodResolver(documentVersionFormSchema),
     defaultValues: {
       title: initialValues.title,
       summary: initialValues.summary,
-      categoryId: "",
       department: initialValues.department,
       versionNumber: initialValues.nextVersionNumber,
-      ownerId: "",
-      tags: [],
       internalNotes: initialValues.internalNotes ?? "",
     },
   });
@@ -61,71 +65,81 @@ export function DocumentVersionForm({
   return (
     <form
       className="space-y-4"
-      onSubmit={form.handleSubmit(async (values) => {
-        if (!mainFile) {
-          pushToast({
-            id: crypto.randomUUID(),
-            title: "Ficheiro obrigatorio",
-            description: "Debes adjuntar un ficheiro antes de continuar.",
-          });
-          return;
-        }
+      onSubmit={form.handleSubmit(
+        async (values) => {
+          if (!mainFile) {
+            pushToast({
+              id: crypto.randomUUID(),
+              title: "Ficheiro obrigatorio",
+              description: "Debes adjuntar un ficheiro antes de continuar.",
+            });
+            return;
+          }
 
-        const fileType = getDocumentFileType(mainFile.name);
-        if (!fileType) {
-          pushToast({
-            id: crypto.randomUUID(),
-            title: "Formato nao suportado",
-            description: "Usa apenas ficheiros PDF, Word, MP4 ou MP3.",
-          });
-          return;
-        }
+          const fileType = getDocumentFileType(mainFile.name);
+          if (!fileType) {
+            pushToast({
+              id: crypto.randomUUID(),
+              title: "Formato nao suportado",
+              description: "Usa apenas ficheiros PDF, Word, MP4 ou MP3.",
+            });
+            return;
+          }
 
-        const formData = new FormData();
-        formData.append("mainFile", mainFile, mainFile.name);
-        formData.append("versionNumber", String(values.versionNumber));
-        formData.append("summary", values.summary);
-        formData.append("department", values.department);
-        formData.append("statusAfterUpload", targetStatus);
-        formData.append(
-          "changelog",
-          mode === "publish"
-            ? `Version V${String(values.versionNumber).padStart(3, "0")} publicada`
-            : `Nova versao V${String(values.versionNumber).padStart(3, "0")} carregada`,
-        );
-        if (values.internalNotes) {
-          formData.append("internalNotes", values.internalNotes);
-        }
-
-        const response = await fetch(`/api/documents/${documentId}/versions`, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const data = await response.json().catch(() => null);
-          pushToast({
-            id: crypto.randomUUID(),
-            title: "Nao foi possivel guardar a versao",
-            description:
-              (data?.error as string | undefined) ?? "Erro ao guardar a nova versao.",
-          });
-          return;
-        }
-
-        pushToast({
-          id: crypto.randomUUID(),
-          title: mode === "publish" ? "Documento publicado" : "Versao carregada",
-          description:
+          const formData = new FormData();
+          formData.append("mainFile", mainFile, mainFile.name);
+          formData.append("versionNumber", String(values.versionNumber));
+          formData.append("summary", values.summary);
+          formData.append("department", values.department);
+          formData.append("statusAfterUpload", targetStatus);
+          formData.append(
+            "changelog",
             mode === "publish"
-              ? `${getDocumentFileTypeLabel(fileType)} publicado com sucesso.`
-              : "A nova versao ficou em atualizacao.",
-        });
-        router.push(`/documents/${documentId}`);
-        router.refresh();
-      })}
+              ? `Version V${String(values.versionNumber).padStart(3, "0")} publicada`
+              : `Nova versao V${String(values.versionNumber).padStart(3, "0")} carregada`,
+          );
+          if (values.internalNotes) {
+            formData.append("internalNotes", values.internalNotes);
+          }
+
+          const response = await fetch(`/api/documents/${documentId}/versions`, {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const data = await response.json().catch(() => null);
+            pushToast({
+              id: crypto.randomUUID(),
+              title: "Nao foi possivel guardar a versao",
+              description:
+                (data?.error as string | undefined) ?? "Erro ao guardar a nova versao.",
+            });
+            return;
+          }
+
+          pushToast({
+            id: crypto.randomUUID(),
+            title: mode === "publish" ? "Documento publicado" : "Versao carregada",
+            description:
+              mode === "publish"
+                ? `${getDocumentFileTypeLabel(fileType)} publicado com sucesso.`
+                : "A nova versao ficou em atualizacao.",
+          });
+          router.push(`/documents/${documentId}`);
+          router.refresh();
+        },
+        (errors) => {
+          const firstError = Object.values(errors)[0];
+          pushToast({
+            id: crypto.randomUUID(),
+            title: "Formulario incompleto",
+            description: firstError?.message ?? "Revê os campos antes de continuar.",
+          });
+        },
+      )}
     >
-      <Input readOnly value={initialValues.title} />
+      <Input readOnly {...form.register("title")} />
       {initialValues.currentFileUrl && (
         <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-4 text-sm text-slate-300">
           <p className="font-medium text-slate-100">Ficheiro atual</p>
@@ -176,8 +190,14 @@ export function DocumentVersionForm({
       )}
       <Textarea placeholder="Notas internas" {...form.register("internalNotes")} />
       <DocumentFilePicker onFileChange={setMainFile} />
-      <Button type="submit">
-        {mode === "publish" ? "Publicar conteudo" : "Guardar nova versao"}
+      <Button type="submit" disabled={form.formState.isSubmitting}>
+        {form.formState.isSubmitting
+          ? mode === "publish"
+            ? "A publicar..."
+            : "A guardar..."
+          : mode === "publish"
+            ? "Publicar conteudo"
+            : "Guardar nova versao"}
       </Button>
     </form>
   );
