@@ -3,6 +3,27 @@ import { extractPdfSearchTextFromFile } from "@/lib/pdf-search-index";
 import { getMainFileObjectPath, getPreviewFileObjectPath } from "@/lib/storage-path";
 import { deleteDocumentFile, uploadDocumentFile } from "@/lib/storage-service";
 
+const PREVIEW_TIMEOUT_MS = 4000;
+const SEARCH_INDEX_TIMEOUT_MS = 2000;
+const MAX_SEARCHABLE_FILE_SIZE_BYTES = 8 * 1024 * 1024;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 export async function uploadDocumentAssets(documentId: string, file: File) {
   const mainPath = getMainFileObjectPath(documentId, file.name);
   const uploadedPaths: string[] = [];
@@ -18,7 +39,11 @@ export async function uploadDocumentAssets(documentId: string, file: File) {
     let searchIndexWarning: string | undefined;
 
     try {
-      previewFile = await generatePreviewPdf(file);
+      previewFile = await withTimeout(
+        generatePreviewPdf(file),
+        PREVIEW_TIMEOUT_MS,
+        "A geracao do preview excedeu o tempo limite e foi ignorada.",
+      );
 
       if (previewFile && previewFile.name !== file.name) {
         previewPath = getPreviewFileObjectPath(documentId, previewFile.name);
@@ -39,8 +64,15 @@ export async function uploadDocumentAssets(documentId: string, file: File) {
             ? file
             : null;
 
-      if (searchablePdf) {
-        searchText = await extractPdfSearchTextFromFile(searchablePdf);
+      if (searchablePdf && searchablePdf.size <= MAX_SEARCHABLE_FILE_SIZE_BYTES) {
+        searchText = await withTimeout(
+          extractPdfSearchTextFromFile(searchablePdf),
+          SEARCH_INDEX_TIMEOUT_MS,
+          "A indexacao do conteudo excedeu o tempo limite e foi ignorada.",
+        );
+      } else if (searchablePdf) {
+        searchIndexWarning =
+          "O ficheiro e demasiado grande para indexacao imediata e foi guardado sem pesquisa interna.";
       }
     } catch (error) {
       searchIndexWarning =
