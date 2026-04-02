@@ -5,22 +5,66 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TBody, TD, TH, THead } from "@/components/ui/table";
 import { requireAuth } from "@/lib/auth";
+import { departmentOptions, mockCategories } from "@/lib/constants";
 import { searchDocumentsByQuery } from "@/lib/document-search";
 import { listDocuments } from "@/lib/documents-service";
-import { canAccessDocumentStatus } from "@/lib/rbac";
+import { canAccessDocumentStatus, documentStatusLabels } from "@/lib/rbac";
+import type { DocumentStatus } from "@/lib/types";
+
+function normalizeValue(value: string) {
+  return value.trim().toLowerCase();
+}
 
 export default async function DocumentsPage({
   searchParams,
 }: {
-  searchParams?: { q?: string };
+  searchParams?: {
+    q?: string;
+    status?: string;
+    category?: string;
+    department?: string;
+  };
 }) {
   const user = await requireAuth();
   const query = searchParams?.q?.trim() ?? "";
+  const selectedStatus = searchParams?.status?.trim() ?? "";
+  const selectedCategory = searchParams?.category?.trim() ?? "";
+  const selectedDepartment = searchParams?.department?.trim() ?? "";
+
   const documents = (await listDocuments()).filter((doc) =>
     canAccessDocumentStatus(user.role, doc.status),
   );
-  const searchResults = query ? await searchDocumentsByQuery(query, user) : [];
-  const showingSearchResults = query.length > 0;
+  const filteredDocuments = documents.filter((doc) => {
+    const statusMatches = !selectedStatus || doc.status === selectedStatus;
+    const categoryMatches = !selectedCategory || doc.categoryId === selectedCategory;
+    const departmentMatches =
+      !selectedDepartment ||
+      normalizeValue(doc.department) === normalizeValue(selectedDepartment);
+
+    return statusMatches && categoryMatches && departmentMatches;
+  });
+
+  const searchResults = query
+    ? (await searchDocumentsByQuery(query, user)).filter((result) => {
+        const statusMatches =
+          !selectedStatus || result.document.status === selectedStatus;
+        const categoryMatches =
+          !selectedCategory || result.document.categoryId === selectedCategory;
+        const departmentMatches =
+          !selectedDepartment ||
+          normalizeValue(result.document.department) === normalizeValue(selectedDepartment);
+
+        return statusMatches && categoryMatches && departmentMatches;
+      })
+    : [];
+
+  const showingSearchResults =
+    query.length > 0 ||
+    selectedStatus.length > 0 ||
+    selectedCategory.length > 0 ||
+    selectedDepartment.length > 0;
+
+  const statusOptions: DocumentStatus[] = ["in_review", "updating", "published"];
 
   return (
     <div className="space-y-6">
@@ -45,9 +89,42 @@ export default async function DocumentsPage({
               defaultValue={query}
               placeholder="Pesquisar titulo ou palavras dentro de documentos publicados..."
             />
-            <Input placeholder="Estado" disabled />
-            <Input placeholder="Categoria" disabled />
-            <Input placeholder="Departamento" disabled />
+            <select
+              name="status"
+              defaultValue={selectedStatus}
+              className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <option value="">Estado</option>
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {documentStatusLabels[status]}
+                </option>
+              ))}
+            </select>
+            <select
+              name="category"
+              defaultValue={selectedCategory}
+              className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <option value="">Categoria</option>
+              {mockCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+            <select
+              name="department"
+              defaultValue={selectedDepartment}
+              className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <option value="">Departamento</option>
+              {departmentOptions.map((department) => (
+                <option key={department} value={department}>
+                  {department}
+                </option>
+              ))}
+            </select>
             <div className="md:col-span-4 flex flex-col gap-3 md:flex-row">
               <Button type="submit">Pesquisar</Button>
               {showingSearchResults && (
@@ -68,7 +145,7 @@ export default async function DocumentsPage({
           <CardContent className="space-y-3">
             {searchResults.length === 0 && (
               <p className="text-sm text-slate-400">
-                Nao foram encontrados documentos publicados com a palavra "{query}".
+                Nao foram encontrados documentos para os filtros aplicados.
               </p>
             )}
             {searchResults.map((result) => (
@@ -124,7 +201,7 @@ export default async function DocumentsPage({
                     </TD>
                   </tr>
                 )}
-                {documents.map((doc) => (
+                {filteredDocuments.map((doc) => (
                   <tr key={doc.id}>
                     <TD>{doc.title}</TD>
                     <TD>{doc.department}</TD>
@@ -139,6 +216,13 @@ export default async function DocumentsPage({
                     </TD>
                   </tr>
                 ))}
+                {filteredDocuments.length === 0 && documents.length > 0 && (
+                  <tr>
+                    <TD colSpan={5} className="py-8 text-center text-slate-400">
+                      Nao existem documentos para os filtros selecionados.
+                    </TD>
+                  </tr>
+                )}
               </TBody>
             </Table>
           </CardContent>
