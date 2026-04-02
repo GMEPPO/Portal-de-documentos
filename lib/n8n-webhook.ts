@@ -20,8 +20,8 @@ export function getN8nWebhookUrls() {
   }
 
   return {
-    productionUrl,
-    testUrl,
+    productionUrl: productionUrl as string,
+    testUrl: testUrl as string,
   };
 }
 
