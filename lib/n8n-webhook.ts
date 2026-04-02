@@ -7,32 +7,30 @@ type DocumentIndexingWebhookPayload = {
   version_number: number;
 };
 
-export function getN8nWebhookUrl() {
-  const isProduction =
-    process.env.VERCEL_ENV === "production" ||
-    (!process.env.VERCEL_ENV && process.env.NODE_ENV === "production");
+export function getN8nWebhookUrls() {
+  const productionUrl = process.env.N8N_WEBHOOK_URL;
+  const testUrl = process.env.N8N_WEBHOOK_TEST_URL;
 
-  const url = isProduction
-    ? process.env.N8N_WEBHOOK_URL
-    : process.env.N8N_WEBHOOK_TEST_URL;
+  const missing: string[] = [];
+  if (!productionUrl) missing.push("N8N_WEBHOOK_URL");
+  if (!testUrl) missing.push("N8N_WEBHOOK_TEST_URL");
 
-  if (!url) {
-    throw new Error(
-      isProduction
-        ? "Falta configurar N8N_WEBHOOK_URL no ambiente de producao."
-        : "Falta configurar N8N_WEBHOOK_TEST_URL no ambiente de teste.",
-    );
+  if (missing.length > 0) {
+    throw new Error(`Falta configurar ${missing.join(" e ")} no ambiente.`);
   }
 
-  return url;
+  return {
+    productionUrl,
+    testUrl,
+  };
 }
 
-export async function triggerDocumentIndexingWebhook(
+async function postWebhook(
+  webhookUrl: string,
   payload: DocumentIndexingWebhookPayload & {
     file: Blob;
   },
 ) {
-  const webhookUrl = getN8nWebhookUrl();
   const formData = new FormData();
   formData.append("document_id", payload.document_id);
   formData.append("file_path", payload.file_path);
@@ -56,6 +54,36 @@ export async function triggerDocumentIndexingWebhook(
   }
 
   return response;
+}
+
+export async function triggerDocumentIndexingWebhooks(
+  payload: DocumentIndexingWebhookPayload & {
+    file: Blob;
+  },
+) {
+  const { productionUrl, testUrl } = getN8nWebhookUrls();
+
+  const [productionResult, testResult] = await Promise.allSettled([
+    postWebhook(productionUrl, payload),
+    postWebhook(testUrl, payload),
+  ]);
+
+  const errors: string[] = [];
+  if (productionResult.status === "rejected") {
+    errors.push(`producao: ${productionResult.reason instanceof Error ? productionResult.reason.message : "erro ao chamar webhook"}`);
+  }
+  if (testResult.status === "rejected") {
+    errors.push(`teste: ${testResult.reason instanceof Error ? testResult.reason.message : "erro ao chamar webhook"}`);
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Falha ao disparar webhooks n8n (${errors.join(" | ")}).`);
+  }
+
+  return {
+    production: productionResult.status === "fulfilled",
+    test: testResult.status === "fulfilled",
+  };
 }
 
 export type { DocumentIndexingWebhookPayload };

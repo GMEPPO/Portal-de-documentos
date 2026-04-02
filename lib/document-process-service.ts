@@ -1,6 +1,6 @@
 import { getDocumentById, updateDocumentProcessingState } from "@/lib/documents-service";
 import { getDocumentFileType, isPdfFilename } from "@/lib/document-file";
-import { triggerDocumentIndexingWebhook } from "@/lib/n8n-webhook";
+import { triggerDocumentIndexingWebhooks } from "@/lib/n8n-webhook";
 import { downloadDocumentFile } from "@/lib/storage-service";
 
 export async function processDocumentAssets(documentId: string) {
@@ -52,7 +52,7 @@ export async function processDocumentAssets(documentId: string) {
       throw new Error("Nao foi possivel descarregar o PDF para envio ao n8n.");
     }
 
-    await triggerDocumentIndexingWebhook({
+    await triggerDocumentIndexingWebhooks({
       document_id: document.id,
       file_path: document.mainFilePath,
       source_filename: filename,
