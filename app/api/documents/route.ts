@@ -86,7 +86,10 @@ export async function POST(request: Request) {
 
       await addVersion(doc.id, versionPayload, user);
 
-      return NextResponse.json({ data: doc }, { status: 201 });
+      return NextResponse.json(
+        { data: doc, warning: uploaded.previewError },
+        { status: 201 },
+      );
     }
 
     const body = await request.json();

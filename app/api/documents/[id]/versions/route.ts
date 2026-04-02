@@ -75,7 +75,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
         );
       }
 
-      return NextResponse.json({ data: version }, { status: 201 });
+      return NextResponse.json(
+        { data: version, warning: uploaded.previewError },
+        { status: 201 },
+      );
     }
 
     const body = await request.json();

@@ -10,18 +10,27 @@ export async function uploadDocumentAssets(documentId: string, file: File) {
     await uploadDocumentFile(mainPath, file);
     uploadedPaths.push(mainPath);
 
-    const previewFile = await generatePreviewPdf(file);
     let previewPath: string | undefined;
+    let previewError: string | undefined;
 
-    if (previewFile && previewFile.name !== file.name) {
-      previewPath = getPreviewFileObjectPath(documentId, previewFile.name);
-      await uploadDocumentFile(previewPath, previewFile);
-      uploadedPaths.push(previewPath);
+    try {
+      const previewFile = await generatePreviewPdf(file);
+
+      if (previewFile && previewFile.name !== file.name) {
+        previewPath = getPreviewFileObjectPath(documentId, previewFile.name);
+        await uploadDocumentFile(previewPath, previewFile);
+        uploadedPaths.push(previewPath);
+      }
+    } catch (error) {
+      previewError =
+        error instanceof Error ? error.message : "Falha ao gerar preview do ficheiro.";
+      console.warn("[document-upload-service] preview skipped:", previewError);
     }
 
     return {
       mainFilePath: mainPath,
       previewFilePath: previewPath,
+      previewError,
       uploadedPaths,
     };
   } catch (error) {
