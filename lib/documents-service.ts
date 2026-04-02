@@ -26,6 +26,14 @@ const versionsStore: DocumentVersionRecord[] = [];
 const commentsStore: DocumentCommentRecord[] = [];
 const auditStore: DocumentAuditRecord[] = [];
 
+function isMissingSearchIndexColumnError(message?: string | null) {
+  const normalizedMessage = (message ?? "").toLowerCase();
+  return (
+    normalizedMessage.includes("search_text") ||
+    normalizedMessage.includes("search_text_updated_at")
+  );
+}
+
 function mapDocumentRow(row: any): DocumentRecord {
   return {
     id: row.id,
@@ -307,6 +315,9 @@ export async function updateDocumentSearchIndex(documentId: string, searchText: 
       .maybeSingle();
 
     if (error) {
+      if (isMissingSearchIndexColumnError(error.message)) {
+        return getDocumentById(documentId);
+      }
       throw new Error(error.message);
     }
 
@@ -430,18 +441,33 @@ export async function addVersion(
       throw new Error(verErr?.message ?? "Error al guardar version.");
     }
 
-    const { error: updErr } = await supabase
+    const documentUpdatePayload = {
+      document_type: parsed.fileType,
+      current_version: targetVersion,
+      main_file_path: parsed.filePath,
+      preview_file_path: parsed.previewFilePath ?? null,
+      search_text: null,
+      search_text_updated_at: null,
+      updated_at: now,
+    };
+
+    let { error: updErr } = await supabase
       .from("documents")
-      .update({
-        document_type: parsed.fileType,
-        current_version: targetVersion,
-        main_file_path: parsed.filePath,
-        preview_file_path: parsed.previewFilePath ?? null,
-        search_text: null,
-        search_text_updated_at: null,
-        updated_at: now,
-      })
+      .update(documentUpdatePayload)
       .eq("id", documentId);
+
+    if (updErr && isMissingSearchIndexColumnError(updErr.message)) {
+      ({ error: updErr } = await supabase
+        .from("documents")
+        .update({
+          document_type: parsed.fileType,
+          current_version: targetVersion,
+          main_file_path: parsed.filePath,
+          preview_file_path: parsed.previewFilePath ?? null,
+          updated_at: now,
+        })
+        .eq("id", documentId));
+    }
 
     if (updErr) {
       throw new Error(updErr.message);
@@ -550,17 +576,31 @@ export async function replaceCurrentVersion(
       throw new Error(updateErr?.message ?? "Error al sustituir version.");
     }
 
-    const { error: docUpdateErr } = await supabase
+    const replacePayload = {
+      document_type: parsed.fileType,
+      main_file_path: parsed.filePath,
+      preview_file_path: parsed.previewFilePath ?? null,
+      search_text: null,
+      search_text_updated_at: null,
+      updated_at: now,
+    };
+
+    let { error: docUpdateErr } = await supabase
       .from("documents")
-      .update({
-        document_type: parsed.fileType,
-        main_file_path: parsed.filePath,
-        preview_file_path: parsed.previewFilePath ?? null,
-        search_text: null,
-        search_text_updated_at: null,
-        updated_at: now,
-      })
+      .update(replacePayload)
       .eq("id", documentId);
+
+    if (docUpdateErr && isMissingSearchIndexColumnError(docUpdateErr.message)) {
+      ({ error: docUpdateErr } = await supabase
+        .from("documents")
+        .update({
+          document_type: parsed.fileType,
+          main_file_path: parsed.filePath,
+          preview_file_path: parsed.previewFilePath ?? null,
+          updated_at: now,
+        })
+        .eq("id", documentId));
+    }
 
     if (docUpdateErr) {
       throw new Error(docUpdateErr.message);
