@@ -14,11 +14,13 @@ import { uploadDocumentAssets } from "@/lib/document-upload-service";
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const user = await requireAuth();
   let uploadedPaths: string[] = [];
+  let failedStep = "inicio";
 
   try {
     const contentType = request.headers.get("content-type") ?? "";
 
     if (contentType.includes("multipart/form-data")) {
+      failedStep = "lectura do formulario";
       const form = await request.formData();
       const mainFile = form.get("mainFile");
       const file = mainFile instanceof File ? mainFile : null;
@@ -34,9 +36,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
         );
       }
 
+      failedStep = "upload do ficheiro";
       const uploaded = await uploadDocumentAssets(params.id, file);
       uploadedPaths = uploaded.uploadedPaths;
 
+      failedStep = "validacao da versao";
       const statusAfterUpload =
         typeof form.get("statusAfterUpload") === "string"
           ? documentStatusSchema.parse(form.get("statusAfterUpload"))
@@ -56,6 +60,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
             : 1,
       });
 
+      failedStep = "leitura do documento atual";
       const currentDoc = await getDocumentById(params.id);
       if (!currentDoc) {
         return NextResponse.json({ error: "Documento no encontrado." }, { status: 404 });
@@ -64,11 +69,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
       const shouldReplaceCurrentVersion =
         statusAfterUpload === "published" && currentDoc.status === "in_review";
 
+      failedStep = "gravacao da versao";
       const version = shouldReplaceCurrentVersion
         ? await replaceCurrentVersion(params.id, versionPayload, user)
         : await addVersion(params.id, versionPayload, user);
 
       if (statusAfterUpload) {
+        failedStep = "atualizacao do estado do documento";
         await updateDocument(
           params.id,
           {
@@ -94,6 +101,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       );
     }
 
+    failedStep = "gravacao da versao json";
     const body = await request.json();
     const version = await addVersion(params.id, body, user);
     return NextResponse.json({ data: version }, { status: 201 });
@@ -107,7 +115,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro inesperado." },
+      {
+        error:
+          error instanceof Error
+            ? `${failedStep}: ${error.message}`
+            : `Erro inesperado em ${failedStep}.`,
+      },
       { status: 400 },
     );
   }

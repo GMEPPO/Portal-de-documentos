@@ -126,6 +126,12 @@ export function DocumentVersionForm({
                 ? `${getDocumentFileTypeLabel(fileType)} publicado com sucesso. A indexacao da pesquisa sera enviada ao n8n em seguida.`
                 : "A nova versao ficou em atualizacao. A indexacao da pesquisa sera enviada ao n8n em seguida.",
           });
+
+          void fetch(`/api/documents/${documentId}/process`, {
+            method: "POST",
+            keepalive: true,
+          }).catch(() => null);
+
           router.push(`/documents/${documentId}`);
           router.refresh();
         },

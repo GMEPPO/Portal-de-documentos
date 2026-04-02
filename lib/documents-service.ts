@@ -706,7 +706,73 @@ export async function replaceCurrentVersion(
 
     if (existingErr) throw new Error(existingErr.message);
     if (!existingRow) {
-      return addVersion(documentId, payload, actor);
+      const versionId = randomUUID();
+      const { data: insertedRow, error: insertErr } = await supabase
+        .from("document_versions")
+        .insert({
+          id: versionId,
+          document_id: documentId,
+          version_number: targetVersion,
+          file_type: parsed.fileType,
+          file_path: parsed.filePath,
+          changelog: parsed.changelog,
+          created_by: actor.id,
+          created_at: now,
+        })
+        .select("*")
+        .single();
+
+      if (insertErr || !insertedRow) {
+        throw new Error(insertErr?.message ?? "Error al crear a versao em revisao.");
+      }
+
+      const processingDefaults = getSearchProcessingDefaults(parsed.filePath, parsed.fileType);
+      let { error: docInsertUpdateErr } = await supabase
+        .from("documents")
+        .update({
+          document_type: parsed.fileType,
+          current_version: targetVersion,
+          main_file_path: parsed.filePath,
+          preview_file_path: parsed.previewFilePath ?? null,
+          search_text: null,
+          search_text_updated_at: null,
+          preview_status: processingDefaults.previewStatus,
+          search_status: processingDefaults.searchStatus,
+          preview_error: null,
+          search_error: null,
+          updated_at: now,
+        })
+        .eq("id", documentId);
+
+      if (
+        docInsertUpdateErr &&
+        shouldIgnoreOptionalDocumentColumnError(docInsertUpdateErr.message)
+      ) {
+        ({ error: docInsertUpdateErr } = await supabase
+          .from("documents")
+          .update({
+            document_type: parsed.fileType,
+            current_version: targetVersion,
+            main_file_path: parsed.filePath,
+            preview_file_path: parsed.previewFilePath ?? null,
+            updated_at: now,
+          })
+          .eq("id", documentId));
+      }
+
+      if (docInsertUpdateErr) {
+        throw new Error(docInsertUpdateErr.message);
+      }
+
+      await supabase.from("audit_logs").insert({
+        id: randomUUID(),
+        event: `document.version.replaced:${documentId}`,
+        actor_id: actor.id,
+        metadata: { documentId, versionId, versionNumber: targetVersion },
+        created_at: now,
+      });
+
+      return mapVersionRow(insertedRow);
     }
 
     const { data: updatedRow, error: updateErr } = await supabase
@@ -788,7 +854,38 @@ export async function replaceCurrentVersion(
   );
 
   if (!existing) {
-    return addVersion(documentId, payload, actor);
+    const created: DocumentVersionRecord = {
+      id: randomUUID(),
+      documentId,
+      versionNumber: parsed.versionNumber,
+      fileType: parsed.fileType,
+      changelog: parsed.changelog,
+      filePath: parsed.filePath,
+      createdBy: actor.id,
+      createdAt: now,
+    };
+
+    versionsStore.unshift(created);
+    doc.documentType = parsed.fileType;
+    doc.currentVersion = parsed.versionNumber;
+    doc.mainFilePath = parsed.filePath;
+    doc.previewFilePath = parsed.previewFilePath;
+    doc.searchText = undefined;
+    const processingDefaults = getSearchProcessingDefaults(parsed.filePath, parsed.fileType);
+    doc.previewStatus = processingDefaults.previewStatus;
+    doc.searchStatus = processingDefaults.searchStatus;
+    doc.previewError = undefined;
+    doc.searchError = undefined;
+    doc.updatedAt = now;
+
+    logAudit(`document.version.replaced:${documentId}`, actor.id, {
+      documentId,
+      versionId: created.id,
+      versionNumber: created.versionNumber,
+      filePath: created.filePath,
+    });
+
+    return created;
   }
 
   existing.fileType = parsed.fileType;
