@@ -60,10 +60,29 @@ export default function NewDocumentPage() {
             const data = await response.json().catch(() => null);
             const documentId = data?.data?.id as string | undefined;
             if (documentId) {
+              console.info("[new-document-page] triggering /process", {
+                documentId,
+                filename: mainFile.name,
+              });
               void fetch(`/api/documents/${documentId}/process`, {
                 method: "POST",
                 keepalive: true,
-              }).catch(() => null);
+              })
+                .then(async (processResponse) => {
+                  const processBody = await processResponse.json().catch(() => null);
+                  console.info("[new-document-page] /process response", {
+                    documentId,
+                    status: processResponse.status,
+                    ok: processResponse.ok,
+                    body: processBody,
+                  });
+                })
+                .catch((error) => {
+                  console.error("[new-document-page] /process failed", {
+                    documentId,
+                    message: error instanceof Error ? error.message : "unknown error",
+                  });
+                });
             }
 
             pushToast({

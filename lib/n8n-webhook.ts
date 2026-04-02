@@ -31,6 +31,13 @@ async function postWebhook(
     file: Blob;
   },
 ) {
+  console.info("[n8n-webhook] sending", {
+    webhookUrl,
+    documentId: payload.document_id,
+    sourceFilename: payload.source_filename,
+    fileSize: payload.file.size,
+  });
+
   const formData = new FormData();
   formData.append("document_id", payload.document_id);
   formData.append("file_path", payload.file_path);
@@ -46,8 +53,21 @@ async function postWebhook(
     cache: "no-store",
   });
 
+  console.info("[n8n-webhook] response", {
+    webhookUrl,
+    documentId: payload.document_id,
+    status: response.status,
+    ok: response.ok,
+  });
+
   if (!response.ok) {
     const body = await response.text().catch(() => "");
+    console.error("[n8n-webhook] failed", {
+      webhookUrl,
+      documentId: payload.document_id,
+      status: response.status,
+      body,
+    });
     throw new Error(
       body || `n8n respondeu com estado ${response.status} ao receber o webhook.`,
     );
@@ -62,6 +82,11 @@ export async function triggerDocumentIndexingWebhooks(
   },
 ) {
   const { productionUrl, testUrl } = getN8nWebhookUrls();
+  console.info("[n8n-webhook] resolved urls", {
+    documentId: payload.document_id,
+    productionUrl,
+    testUrl,
+  });
 
   const [productionResult, testResult] = await Promise.allSettled([
     postWebhook(productionUrl, payload),
@@ -77,9 +102,16 @@ export async function triggerDocumentIndexingWebhooks(
   }
 
   if (errors.length > 0) {
+    console.error("[n8n-webhook] one or more webhook calls failed", {
+      documentId: payload.document_id,
+      errors,
+    });
     throw new Error(`Falha ao disparar webhooks n8n (${errors.join(" | ")}).`);
   }
 
+  console.info("[n8n-webhook] both webhook calls succeeded", {
+    documentId: payload.document_id,
+  });
   return {
     production: productionResult.status === "fulfilled",
     test: testResult.status === "fulfilled",

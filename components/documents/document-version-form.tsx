@@ -127,10 +127,31 @@ export function DocumentVersionForm({
                 : "A nova versao ficou em atualizacao. A indexacao da pesquisa sera enviada ao n8n em seguida.",
           });
 
+          console.info("[document-version-form] triggering /process", {
+            documentId,
+            mode,
+            filename: mainFile.name,
+            fileType,
+          });
           void fetch(`/api/documents/${documentId}/process`, {
             method: "POST",
             keepalive: true,
-          }).catch(() => null);
+          })
+            .then(async (processResponse) => {
+              const processBody = await processResponse.json().catch(() => null);
+              console.info("[document-version-form] /process response", {
+                documentId,
+                status: processResponse.status,
+                ok: processResponse.ok,
+                body: processBody,
+              });
+            })
+            .catch((error) => {
+              console.error("[document-version-form] /process failed", {
+                documentId,
+                message: error instanceof Error ? error.message : "unknown error",
+              });
+            });
 
           router.push(`/documents/${documentId}`);
           router.refresh();
