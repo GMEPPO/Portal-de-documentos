@@ -47,22 +47,50 @@ function formatAuditEvent(item: DocumentAuditRecord) {
 
 export default async function DocumentDetailPage({ params }: { params: { id: string } }) {
   const user = await requireAuth();
-  const doc = await getDocumentById(params.id);
+  let doc = null;
+  try {
+    doc = await getDocumentById(params.id);
+  } catch {
+    doc = null;
+  }
   if (!doc) notFound();
   if (!canAccessDocumentStatus(user.role, doc.status)) notFound();
-  const history = await listDocumentHistory(doc.id);
+  let history: Awaited<ReturnType<typeof listDocumentHistory>>;
+  try {
+    history = await listDocumentHistory(doc.id);
+  } catch {
+    history = {
+      versions: [],
+      comments: [],
+      audits: [],
+    };
+  }
   const canManageDocument = canEditDocument(user.role);
   const readableFilePath = doc.previewFilePath ?? doc.mainFilePath;
-  const fileUrl = readableFilePath
-    ? await getDocumentFileSignedUrl(readableFilePath)
-    : null;
+  let fileUrl: string | null = null;
+  if (readableFilePath) {
+    try {
+      fileUrl = await getDocumentFileSignedUrl(readableFilePath);
+    } catch {
+      fileUrl = null;
+    }
+  }
   const readableFilename = readableFilePath?.split("/").pop() ?? doc.title;
   const versions = await Promise.all(
-    history.versions.map(async (item) => ({
-      ...item,
-      fileUrl: await getDocumentFileSignedUrl(item.filePath),
-      filename: item.filePath.split("/").pop() ?? `v${item.versionNumber}`,
-    })),
+    history.versions.map(async (item) => {
+      let versionFileUrl: string | null = null;
+      try {
+        versionFileUrl = await getDocumentFileSignedUrl(item.filePath);
+      } catch {
+        versionFileUrl = null;
+      }
+
+      return {
+        ...item,
+        fileUrl: versionFileUrl,
+        filename: item.filePath.split("/").pop() ?? `v${item.versionNumber}`,
+      };
+    }),
   );
 
   return (
