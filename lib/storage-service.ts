@@ -62,3 +62,21 @@ export async function getDocumentFileSignedUrl(path: string, expiresIn = 3600) {
 
   return data?.signedUrl ?? null;
 }
+
+export async function downloadDocumentFile(path: string) {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase.storage.from(BUCKET).download(path);
+  if (error) {
+    throw error;
+  }
+  if (!data) {
+    return null;
+  }
+
+  const arrayBuffer = await data.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
