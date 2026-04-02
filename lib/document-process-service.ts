@@ -1,6 +1,7 @@
 import { generatePreviewPdf } from "@/lib/document-preview-service";
 import { getDocumentById, updateDocumentProcessingState } from "@/lib/documents-service";
 import { getDocumentFileType, isPdfFilename, isWordFilename } from "@/lib/document-file";
+import type { DocumentProcessingStatus } from "@/lib/types";
 import { extractPdfSearchTextFromBuffer, normalizeSearchText } from "@/lib/pdf-search-index";
 import { getPreviewFileObjectPath } from "@/lib/storage-path";
 import { downloadDocumentFile, uploadDocumentFile } from "@/lib/storage-service";
@@ -46,7 +47,7 @@ export async function processDocumentAssets(documentId: string) {
   }
 
   let previewFilePath = document.previewFilePath ?? null;
-  let previewStatus = isWordFilename(filename) ? ("failed" as const) : ("skipped" as const);
+  let previewStatus: DocumentProcessingStatus = isWordFilename(filename) ? "failed" : "skipped";
   let previewError: string | null = null;
   let searchableBuffer: Buffer | null = null;
 
