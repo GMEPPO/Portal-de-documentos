@@ -73,7 +73,7 @@ export function DocumentVersionForm({
           pushToast({
             id: crypto.randomUUID(),
             title: "Formato nao suportado",
-            description: "Usa apenas ficheiros PDF, MP4 ou MP3.",
+            description: "Usa apenas ficheiros PDF, Word, MP4 ou MP3.",
           });
           return;
         }

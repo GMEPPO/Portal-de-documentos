@@ -2,6 +2,8 @@ import type { DocumentFileType } from "@/lib/types";
 
 const EXTENSION_TO_TYPE: Record<string, DocumentFileType> = {
   ".pdf": "document",
+  ".doc": "document",
+  ".docx": "document",
   ".mp4": "video",
   ".mp3": "audio",
 };
@@ -26,7 +28,7 @@ export function isSupportedDocumentFile(filename: string) {
 export function getDocumentFileTypeLabel(type: DocumentFileType) {
   switch (type) {
     case "document":
-      return "PDF";
+      return "Documento";
     case "video":
       return "Video";
     case "audio":

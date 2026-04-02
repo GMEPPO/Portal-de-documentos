@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export function DocumentFilePicker({
   onFileChange,
   className,
-  acceptedFileTypesLabel = "PDF, MP4 ou MP3",
+  acceptedFileTypesLabel = "PDF, Word, MP4 ou MP3",
 }: {
   onFileChange: (file: File | null) => void;
   className?: string;
@@ -68,7 +68,7 @@ export function DocumentFilePicker({
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,.mp4,.mp3"
+          accept=".pdf,.doc,.docx,.mp4,.mp3"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0] ?? null;

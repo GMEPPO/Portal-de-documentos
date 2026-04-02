@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { addVersion, createDocument, listDocuments } from "@/lib/documents-service";
 import { requireAuth } from "@/lib/auth";
 import { canAccessDocumentStatus } from "@/lib/rbac";
-import { deleteDocumentFile, uploadDocumentFile } from "@/lib/storage-service";
+import { deleteDocumentFiles } from "@/lib/storage-service";
 import { versionSchema } from "@/lib/validations";
-import { getMainFileObjectPath } from "@/lib/storage-path";
 import { parseDepartmentTitleVersion } from "@/lib/document-name-parser";
 import { createSupabaseServiceServerClient } from "@/lib/supabase-service-server";
 import { getDocumentFileType } from "@/lib/document-file";
+import { uploadDocumentAssets } from "@/lib/document-upload-service";
 
 export async function GET() {
   const user = await requireAuth();
@@ -21,10 +21,10 @@ export async function POST(request: Request) {
   const user = await requireAuth();
   let createdDocumentId: string | null = null;
   let uploadedPaths: string[] = [];
+
   try {
     const contentType = request.headers.get("content-type") ?? "";
 
-    // Nuevo flujo: multipart/form-data con metadata + fichero principal.
     if (contentType.includes("multipart/form-data")) {
       const form = await request.formData();
       const mainFile = form.get("mainFile");
@@ -35,13 +35,9 @@ export async function POST(request: Request) {
         title: typeof form.get("title") === "string" ? form.get("title") : "",
         summary: typeof form.get("summary") === "string" ? form.get("summary") : "",
         categoryId:
-          typeof form.get("categoryId") === "string"
-            ? form.get("categoryId")
-            : "",
+          typeof form.get("categoryId") === "string" ? form.get("categoryId") : "",
         department:
           typeof form.get("department") === "string" ? form.get("department") : "",
-        // Para evitar FK inválidos y simplificar el flujo,
-        // el responsable inicial del documento es el usuario autenticado.
         ownerId: user.id,
         versionNumber:
           typeof form.get("versionNumber") === "string"
@@ -54,13 +50,10 @@ export async function POST(request: Request) {
         tags: [],
       };
 
-      // Parse opcional desde el "nombre" del documento (title) o desde el fichero.
-      // Caso típico: "PE.DSI - Manutenção de Preços - V001"
       const parseSource = String(file?.name ?? payload.title ?? "");
       const parsedName = parseDepartmentTitleVersion(parseSource);
       const initialVersionNumber = payload.versionNumber || parsedName.versionNumber || 1;
 
-      // Si el parse encontró departamento/título, los aplicamos sobre el payload.
       if (parsedName.department) {
         payload.department = parsedName.department;
       }
@@ -77,34 +70,25 @@ export async function POST(request: Request) {
         throw new Error("Debes adjuntar un ficheiro para criar o documento.");
       }
       if (!fileType) {
-        throw new Error("Formato nao suportado. Usa PDF, MP4 ou MP3.");
+        throw new Error("Formato nao suportado. Usa PDF, Word, MP4 ou MP3.");
       }
 
-      if (file) {
-        const objectPath = getMainFileObjectPath(doc.id, file.name);
-        const uploaded = await uploadDocumentFile(objectPath, file);
-        uploadedPaths = [uploaded.path];
+      const uploaded = await uploadDocumentAssets(doc.id, file);
+      uploadedPaths = uploaded.uploadedPaths;
 
-        // Primera versión = fichero principal
-        const versionPayload = versionSchema.parse({
-          changelog: `Inicial (${initialVersionNumber ? `V${String(initialVersionNumber).padStart(3, "0")}` : "V?"}) - upload do ficheiro principal`,
-          filePath: uploaded.path,
-          fileType,
-          versionNumber: initialVersionNumber,
-        });
+      const versionPayload = versionSchema.parse({
+        changelog: `Inicial (${initialVersionNumber ? `V${String(initialVersionNumber).padStart(3, "0")}` : "V?"}) - upload do ficheiro principal`,
+        filePath: uploaded.mainFilePath,
+        fileType,
+        previewFilePath: uploaded.previewFilePath,
+        versionNumber: initialVersionNumber,
+      });
 
-        // Si el nombre trae V###, creamos el documento con la versión inicial correspondiente.
-        // Para hacerlo, re-creamos la doc con current_version correcto no es ideal,
-        // pero en esta implementación lo cubrimos ajustando el version_number al añadir la primera versión.
-        // Como addVersion calcula "current_version + 1", al haber creado el doc en createDocument con
-        // current_version = initialVersionNumber - 1, el addVersion deja version_number = initialVersionNumber.
-        await addVersion(doc.id, versionPayload, user);
-      }
+      await addVersion(doc.id, versionPayload, user);
 
       return NextResponse.json({ data: doc }, { status: 201 });
     }
 
-    // Fallback compatibilidad: JSON
     const body = await request.json();
     const doc = await createDocument(body, user);
     return NextResponse.json({ data: doc }, { status: 201 });
@@ -115,22 +99,22 @@ export async function POST(request: Request) {
         await supabase.from("documents").delete().eq("id", createdDocumentId);
       }
     }
-    for (const uploadedPath of uploadedPaths.reverse()) {
+
+    if (uploadedPaths.length > 0) {
       try {
-        await deleteDocumentFile(uploadedPath);
+        await deleteDocumentFiles(uploadedPaths);
       } catch {
         // noop
       }
     }
+
     const message =
       error && typeof error === "object" && "message" in error
         ? String((error as any).message)
         : error instanceof Error
           ? error.message
           : "Erro inesperado.";
-    return NextResponse.json(
-      { error: message },
-      { status: 400 },
-    );
+
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }
