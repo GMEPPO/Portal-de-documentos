@@ -1,6 +1,10 @@
 import { Button } from "@/components/ui/button";
 import type { DocumentFileType } from "@/lib/types";
 
+function isPdfFile(filename: string) {
+  return filename.trim().toLowerCase().endsWith(".pdf");
+}
+
 export function DocumentFileViewer({
   fileUrl,
   filename,
@@ -10,17 +14,23 @@ export function DocumentFileViewer({
   filename: string;
   fileType: DocumentFileType;
 }) {
+  const canEmbedPdf = fileType === "document" && isPdfFile(filename);
+  const canEmbedVideo = fileType === "video";
+  const canEmbedAudio = fileType === "audio";
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-slate-900/50 p-4 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-sm font-medium text-slate-100">Documento principal</p>
           <p className="text-xs text-slate-400">
-            {fileType === "document"
+            {canEmbedPdf
               ? "Leitura embebida na web. Para procurar texto no PDF, usa Ctrl+F na visualizacao."
-              : fileType === "video"
+              : canEmbedVideo
                 ? "Reproducao embebida do video na web com controles nativos."
-                : "Reproducao embebida do audio na web com controles nativos."}
+                : canEmbedAudio
+                  ? "Reproducao embebida do audio na web com controles nativos."
+                  : "Este ficheiro nao tem preview embebido disponivel. Usa abrir ou transferir para consultar o conteudo."}
           </p>
         </div>
         <div className="flex gap-2">
@@ -37,13 +47,13 @@ export function DocumentFileViewer({
         </div>
       </div>
 
-      {fileType === "document" ? (
+      {canEmbedPdf ? (
         <iframe
           title={`Visualizacao de ${filename}`}
           src={fileUrl}
           className="h-[720px] w-full rounded-lg border border-slate-700 bg-white"
         />
-      ) : fileType === "video" ? (
+      ) : canEmbedVideo ? (
         <video
           controls
           preload="metadata"
@@ -52,7 +62,7 @@ export function DocumentFileViewer({
           <source src={fileUrl} />
           O navegador nao consegue reproduzir este video embebido.
         </video>
-      ) : fileType === "audio" ? (
+      ) : canEmbedAudio ? (
         <div className="rounded-lg border border-slate-700 bg-slate-950 p-6">
           <audio controls preload="metadata" className="w-full">
             <source src={fileUrl} />

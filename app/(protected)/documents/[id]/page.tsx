@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DocumentCommentsPanel } from "@/components/documents/document-comments-panel";
 import { DocumentDeleteButton } from "@/components/documents/document-delete-button";
 import { DocumentFileViewer } from "@/components/documents/document-file-viewer";
 import { DocumentVersionsPanel } from "@/components/documents/document-versions-panel";
@@ -148,14 +149,10 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
         <TabsContent value="comments" className="mt-3">
           <Card>
             <CardContent className="space-y-2 pt-5 text-sm">
-              {history.comments.length === 0 && (
-                <p className="text-slate-400">Sem comentarios registados.</p>
-              )}
-              {history.comments.map((item) => (
-                <p key={item.id} className="rounded border border-slate-700 p-3">
-                  {item.content}
-                </p>
-              ))}
+              <DocumentCommentsPanel
+                documentId={doc.id}
+                comments={history.comments}
+              />
             </CardContent>
           </Card>
         </TabsContent>
