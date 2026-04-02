@@ -1,4 +1,4 @@
-import { documentCreateSchema, documentUpdateSchema } from "@/lib/validations";
+import { documentCreateSchema, documentUpdateSchema, versionSchema } from "@/lib/validations";
 
 describe("Document validations", () => {
   test("creacion valida", () => {
@@ -16,6 +16,25 @@ describe("Document validations", () => {
 
   test("actualizacion invalida con estado desconocido", () => {
     const parsed = documentUpdateSchema.safeParse({ status: "xpto" });
+    expect(parsed.success).toBe(false);
+  });
+
+  test("version valida con tipo de fichero soportado", () => {
+    const parsed = versionSchema.safeParse({
+      changelog: "Alta inicial de video",
+      filePath: "doc/main/demo.mp4",
+      fileType: "video",
+      versionNumber: 1,
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  test("version invalida sin tipo de fichero soportado", () => {
+    const parsed = versionSchema.safeParse({
+      changelog: "Alta inicial",
+      filePath: "doc/main/demo.exe",
+      versionNumber: 1,
+    });
     expect(parsed.success).toBe(false);
   });
 });

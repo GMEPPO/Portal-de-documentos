@@ -7,6 +7,7 @@ export const SelectValue = SelectPrimitive.Value;
 
 export function SelectTrigger({
   className,
+  children,
   ...props
 }: SelectPrimitive.SelectTriggerProps) {
   return (
@@ -17,7 +18,7 @@ export function SelectTrigger({
       )}
       {...props}
     >
-      <SelectPrimitive.Value />
+      {children}
       <SelectPrimitive.Icon asChild>
         <ChevronDown className="h-4 w-4 text-slate-400" />
       </SelectPrimitive.Icon>
@@ -46,6 +47,7 @@ export function SelectContent({
 
 export function SelectItem({
   className,
+  children,
   ...props
 }: SelectPrimitive.SelectItemProps) {
   return (
@@ -56,7 +58,7 @@ export function SelectItem({
       )}
       {...props}
     >
-      <SelectPrimitive.ItemText />
+      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
     </SelectPrimitive.Item>
   );
 }
