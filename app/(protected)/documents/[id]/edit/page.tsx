@@ -18,9 +18,14 @@ export default async function EditDocumentPage({
   if (!doc) notFound();
   if (!canEditDocument(user.role)) notFound();
   const mode = searchParams?.mode === "publish" ? "publish" : "update";
-  const currentFileUrl = doc.mainFilePath
-    ? await getDocumentFileSignedUrl(doc.mainFilePath)
-    : null;
+  let currentFileUrl: string | null = null;
+  if (doc.mainFilePath) {
+    try {
+      currentFileUrl = await getDocumentFileSignedUrl(doc.mainFilePath);
+    } catch {
+      currentFileUrl = null;
+    }
+  }
   const currentFilename = doc.mainFilePath?.split("/").pop() ?? null;
 
   return (
