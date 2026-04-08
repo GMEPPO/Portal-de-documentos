@@ -1,4 +1,11 @@
-import { addVersion, createDocument, deleteDocument, updateDocument } from "@/lib/documents-service";
+import {
+  addVersion,
+  createDocument,
+  deleteDocument,
+  replaceCurrentVersion,
+  updateDocument,
+  updateDocumentSearchIndex,
+} from "@/lib/documents-service";
 import type { AppUser } from "@/lib/types";
 
 const admin: AppUser = {
@@ -82,6 +89,8 @@ describe("documents service", () => {
 
     expect(version.fileType).toBe("video");
     expect(updated.documentType).toBe("video");
+    expect(updated.previewStatus).toBe("skipped");
+    expect(updated.searchStatus).toBe("skipped");
   });
 
   test("elimina documento y devuelve paths asociados", async () => {
@@ -114,5 +123,99 @@ describe("documents service", () => {
     expect(deleted.document.id).toBe(created.id);
     expect(deleted.document.documentType).toBe("audio");
     expect(deleted.paths).toContain("doc-2/main/audio.mp3");
+  });
+
+  test("permite sustituir la version actual al publicar desde revision", async () => {
+    const created = await createDocument(
+      {
+        title: "Documento em revisao",
+        summary: "Resumo inicial suficiente para o fluxo de revisao.",
+        categoryId: "cat-procedure",
+        department: "Calidad",
+        versionNumber: 1,
+        ownerId: "u-editor",
+        tags: [],
+      },
+      admin,
+      { initialVersionNumber: 1 },
+    );
+
+    await addVersion(
+      created.id,
+      {
+        changelog: "Versao inicial em revisao",
+        filePath: "doc-3/main/original.docx",
+        fileType: "document",
+        versionNumber: 1,
+      },
+      admin,
+    );
+
+    const replaced = await replaceCurrentVersion(
+      created.id,
+      {
+        changelog: "Versao 1 publicada em PDF",
+        filePath: "doc-3/main/publicado.pdf",
+        fileType: "document",
+        previewFilePath: "doc-3/preview/publicado.pdf",
+        versionNumber: 1,
+      },
+      admin,
+    );
+
+    expect(replaced.versionNumber).toBe(1);
+    expect(replaced.filePath).toBe("doc-3/main/publicado.pdf");
+  });
+
+  test("marca processamento pendente para documentos ao subir nova versao", async () => {
+    const created = await createDocument(
+      {
+        title: "Documento pendente",
+        summary: "Resumo inicial suficiente para processamento posterior.",
+        categoryId: "cat-procedure",
+        department: "Calidad",
+        versionNumber: 1,
+        ownerId: "u-editor",
+        tags: [],
+      },
+      admin,
+    );
+
+    await addVersion(
+      created.id,
+      {
+        changelog: "Versao inicial em pdf",
+        filePath: "doc-4/main/publicado.pdf",
+        fileType: "document",
+        versionNumber: 1,
+      },
+      admin,
+    );
+
+    const updated = await updateDocument(created.id, { summary: "Resumo revisto." }, admin);
+    expect(updated.previewStatus).toBe("pending");
+    expect(updated.searchStatus).toBe("pending");
+  });
+
+  test("guarda el indice de busqueda persistente en el documento", async () => {
+    const created = await createDocument(
+      {
+        title: "Documento indexado",
+        summary: "Resumo base para indexacao pesquisavel.",
+        categoryId: "cat-procedure",
+        department: "Calidad",
+        versionNumber: 1,
+        ownerId: "u-editor",
+        tags: [],
+      },
+      admin,
+    );
+
+    const updated = await updateDocumentSearchIndex(
+      created.id,
+      "Email enviado diretamente pelo cliente e validado pelo comercial.",
+    );
+
+    expect(updated?.searchText).toContain("Email enviado diretamente");
   });
 });

@@ -29,6 +29,16 @@ describe("Document validations", () => {
     expect(parsed.success).toBe(true);
   });
 
+  test("version valida para documento Word", () => {
+    const parsed = versionSchema.safeParse({
+      changelog: "Alta inicial de Word",
+      filePath: "doc/main/demo.docx",
+      fileType: "document",
+      versionNumber: 1,
+    });
+    expect(parsed.success).toBe(true);
+  });
+
   test("version invalida sin tipo de fichero soportado", () => {
     const parsed = versionSchema.safeParse({
       changelog: "Alta inicial",

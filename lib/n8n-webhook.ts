@@ -101,7 +101,10 @@ export async function triggerDocumentIndexingWebhooks(
     errors.push(`teste: ${testResult.reason instanceof Error ? testResult.reason.message : "erro ao chamar webhook"}`);
   }
 
-  if (errors.length > 0) {
+  const succeeded =
+    productionResult.status === "fulfilled" || testResult.status === "fulfilled";
+
+  if (!succeeded) {
     console.error("[n8n-webhook] one or more webhook calls failed", {
       documentId: payload.document_id,
       errors,
@@ -109,8 +112,17 @@ export async function triggerDocumentIndexingWebhooks(
     throw new Error(`Falha ao disparar webhooks n8n (${errors.join(" | ")}).`);
   }
 
-  console.info("[n8n-webhook] both webhook calls succeeded", {
+  if (errors.length > 0) {
+    console.warn("[n8n-webhook] partial success", {
+      documentId: payload.document_id,
+      errors,
+    });
+  }
+
+  console.info("[n8n-webhook] at least one webhook call succeeded", {
     documentId: payload.document_id,
+    productionOk: productionResult.status === "fulfilled",
+    testOk: testResult.status === "fulfilled",
   });
   return {
     production: productionResult.status === "fulfilled",

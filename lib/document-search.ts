@@ -1,4 +1,5 @@
 import { getCategoryNameById } from "@/lib/constants";
+import { createSupabaseServiceServerClient } from "@/lib/supabase-service-server";
 import { listDocuments } from "@/lib/documents-service";
 import { canAccessDocumentStatus } from "@/lib/rbac";
 import type { AppUser, DocumentRecord } from "@/lib/types";
@@ -32,6 +33,52 @@ function buildSnippet(text: string, query: string) {
   return `${prefix}${text.slice(start, end).trim()}${suffix}`;
 }
 
+async function loadChunkTextByDocumentId(documentIds: string[]) {
+  if (documentIds.length === 0) {
+    return new Map<string, string>();
+  }
+
+  const supabase = createSupabaseServiceServerClient();
+  if (!supabase) {
+    return new Map<string, string>();
+  }
+
+  const { data, error } = await supabase
+    .from("document_chunks")
+    .select("document_id, chunk_index, content, page_content")
+    .in("document_id", documentIds)
+    .order("document_id", { ascending: true })
+    .order("chunk_index", { ascending: true });
+
+  if (error) {
+    console.warn("[document-search] failed to load chunks", {
+      message: error.message,
+      documentIds,
+    });
+    return new Map<string, string>();
+  }
+
+  const grouped = new Map<string, string[]>();
+  for (const row of data ?? []) {
+    const documentId = row.document_id as string | null;
+    if (!documentId) continue;
+
+    const text = String(row.content ?? row.page_content ?? "").trim();
+    if (!text) continue;
+
+    const current = grouped.get(documentId) ?? [];
+    current.push(text);
+    grouped.set(documentId, current);
+  }
+
+  return new Map(
+    Array.from(grouped.entries()).map(([documentId, chunks]) => [
+      documentId,
+      chunks.join("\n\n"),
+    ]),
+  );
+}
+
 export async function searchDocumentsByQuery(
   query: string,
   user: AppUser,
@@ -50,6 +97,9 @@ export async function searchDocumentsByQuery(
 
   const publishedDocuments = documents.filter((document) => document.status === "published");
   const normalizedQuery = normalizeForSearch(trimmedQuery);
+  const chunkTextByDocumentId = await loadChunkTextByDocumentId(
+    publishedDocuments.map((document) => document.id),
+  );
 
   const matches = await Promise.all(
     publishedDocuments.map(async (document) => {
@@ -79,6 +129,15 @@ export async function searchDocumentsByQuery(
         return {
           document,
           snippet: buildSnippet(indexedSearchText, trimmedQuery),
+          matchedIn: "content" as const,
+        };
+      }
+
+      const chunkText = chunkTextByDocumentId.get(document.id)?.trim() ?? "";
+      if (chunkText && normalizeForSearch(chunkText).includes(normalizedQuery)) {
+        return {
+          document,
+          snippet: buildSnippet(chunkText, trimmedQuery),
           matchedIn: "content" as const,
         };
       }
