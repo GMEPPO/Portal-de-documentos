@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FileText, Home, Shield } from "lucide-react";
 import type { AppUser } from "@/lib/types";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { canManageUsers } from "@/lib/rbac";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -16,13 +17,20 @@ export function AppShell({
   user: AppUser;
   children: React.ReactNode;
 }) {
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.href.startsWith("/admin")) {
+      return canManageUsers(user.role);
+    }
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
       <header className="border-b border-slate-700 bg-slate-800/90">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <p className="font-semibold tracking-tight text-amber-400">DOCFLOW Internal</p>
           <nav className="flex items-center gap-2">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Link

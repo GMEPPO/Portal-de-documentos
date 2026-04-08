@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+export const userRoleSchema = z.enum([
+  "viewer",
+  "editor",
+  "manager",
+  "admin",
+]);
+
 export const documentStatusSchema = z.enum([
   "in_review",
   "updating",
@@ -38,6 +45,22 @@ export const versionSchema = z.object({
   versionNumber: z.coerce.number().int().positive(),
   fileType: documentFileTypeSchema,
   previewFilePath: z.string().min(1).optional(),
+});
+
+export const adminUserCreateSchema = z.object({
+  name: z.string().min(2).max(120),
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+  department: z.string().min(2).max(100),
+  role: userRoleSchema,
+});
+
+export const adminUserUpdateSchema = z.object({
+  userId: z.string().uuid(),
+  email: z.string().email(),
+  name: z.string().min(2).max(120),
+  department: z.string().min(2).max(100),
+  role: userRoleSchema,
 });
 
 export type DocumentCreateInput = z.infer<typeof documentCreateSchema>;
