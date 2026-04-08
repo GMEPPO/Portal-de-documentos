@@ -18,9 +18,26 @@ function getErrorMessage(error: unknown) {
     return error.message;
   }
   if (typeof error === "object" && error !== null && "message" in error) {
-    const maybeMessage = (error as { message?: unknown }).message;
-    if (typeof maybeMessage === "string" && maybeMessage.trim()) {
-      return maybeMessage;
+    const maybeError = error as {
+      message?: unknown;
+      code?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      error_description?: unknown;
+    };
+
+    const parts = [
+      typeof maybeError.message === "string" ? maybeError.message.trim() : "",
+      typeof maybeError.details === "string" ? maybeError.details.trim() : "",
+      typeof maybeError.hint === "string" ? `Hint: ${maybeError.hint.trim()}` : "",
+      typeof maybeError.error_description === "string"
+        ? maybeError.error_description.trim()
+        : "",
+      typeof maybeError.code === "string" ? `Code: ${maybeError.code}` : "",
+    ].filter(Boolean);
+
+    if (parts.length > 0) {
+      return parts.join(" | ");
     }
   }
   try {
