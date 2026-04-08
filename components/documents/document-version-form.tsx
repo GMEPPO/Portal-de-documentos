@@ -59,7 +59,7 @@ export function DocumentVersionForm({
     },
   });
 
-  const targetStatus: DocumentStatus = mode === "publish" ? "published" : "updating";
+  const targetStatus: DocumentStatus = "published";
   const isPublishingReviewedVersion =
     mode === "publish" && initialValues.currentStatus === "in_review";
   const canReuseCurrentReviewPdf =
@@ -125,11 +125,11 @@ export function DocumentVersionForm({
 
           pushToast({
             id: crypto.randomUUID(),
-            title: mode === "publish" ? "Documento publicado" : "Versao carregada",
+            title: mode === "publish" ? "Documento publicado" : "Nova versao publicada",
             description:
               mode === "publish"
                 ? `${getDocumentFileTypeLabel(fileType ?? "document")} publicado com sucesso. A indexacao da pesquisa sera enviada ao n8n em seguida.`
-                : "A nova versao ficou em atualizacao. A indexacao da pesquisa sera enviada ao n8n em seguida.",
+                : "A nova versao foi publicada e substituiu o conteudo anteriormente publicado. A indexacao da pesquisa sera enviada ao n8n em seguida.",
           });
 
           console.info("[document-version-form] triggering /process", {
@@ -238,10 +238,10 @@ export function DocumentVersionForm({
         {form.formState.isSubmitting
           ? mode === "publish"
             ? "A publicar..."
-            : "A guardar..."
+            : "A publicar..."
           : mode === "publish"
             ? "Publicar conteudo"
-            : "Guardar nova versao"}
+            : "Publicar nova versao"}
       </Button>
     </form>
   );

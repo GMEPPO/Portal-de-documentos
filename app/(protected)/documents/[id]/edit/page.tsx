@@ -38,7 +38,7 @@ export default async function EditDocumentPage({
             ? hasReusableReviewPdf
               ? "Podes publicar usando o PDF atual da revisao ou carregar um novo PDF para substituir o existente."
               : "Sube um PDF, Word, MP4 ou MP3 final para publicar a versao atual."
-            : "Carrega una nova versao do documento mantendo o mesmo nome."}
+            : "Carrega um novo ficheiro para publicar diretamente uma nova versao. Enquanto nao guardares, o documento atual continua publicado."}
         </CardDescription>
       </CardHeader>
       <CardContent>
