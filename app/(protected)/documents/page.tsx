@@ -10,9 +10,91 @@ import { searchDocumentsByQuery } from "@/lib/document-search";
 import { listDocuments } from "@/lib/documents-service";
 import { canAccessDocumentStatus, documentStatusLabels } from "@/lib/rbac";
 import type { DocumentStatus } from "@/lib/types";
+import type { ReactNode } from "react";
 
 function normalizeValue(value: string) {
   return value.trim().toLowerCase();
+}
+
+function normalizeForHighlight(text: string) {
+  let normalized = "";
+  const indexMap: number[] = [];
+
+  for (let index = 0; index < text.length; index += 1) {
+    const folded = text[index]
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+    for (const char of folded) {
+      normalized += char;
+      indexMap.push(index);
+    }
+  }
+
+  return { normalized, indexMap };
+}
+
+function highlightSnippet(snippet: string, query: string) {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) {
+    return snippet;
+  }
+
+  const { normalized, indexMap } = normalizeForHighlight(snippet);
+  const normalizedQuery = normalizeForHighlight(trimmedQuery).normalized;
+  if (!normalizedQuery) {
+    return snippet;
+  }
+
+  const ranges: Array<{ start: number; end: number }> = [];
+  let searchFrom = 0;
+
+  while (searchFrom < normalized.length) {
+    const matchIndex = normalized.indexOf(normalizedQuery, searchFrom);
+    if (matchIndex === -1) {
+      break;
+    }
+
+    const start = indexMap[matchIndex];
+    const end = (indexMap[matchIndex + normalizedQuery.length - 1] ?? start) + 1;
+
+    if (start !== undefined) {
+      ranges.push({ start, end });
+    }
+
+    searchFrom = matchIndex + normalizedQuery.length;
+  }
+
+  if (ranges.length === 0) {
+    return snippet;
+  }
+
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+
+  ranges.forEach((range, index) => {
+    if (range.start > lastIndex) {
+      nodes.push(snippet.slice(lastIndex, range.start));
+    }
+
+    nodes.push(
+      <mark
+        key={`match-${range.start}-${range.end}-${index}`}
+        className="rounded bg-amber-300/25 px-1 text-amber-100 ring-1 ring-amber-300/35"
+      >
+        {snippet.slice(range.start, range.end)}
+      </mark>,
+    );
+
+    lastIndex = range.end;
+  });
+
+  if (lastIndex < snippet.length) {
+    nodes.push(snippet.slice(lastIndex));
+  }
+
+  return nodes;
 }
 
 export default async function DocumentsPage({
@@ -135,7 +217,7 @@ export default async function DocumentsPage({
                     <div className="space-y-2">
                       {result.snippets.map((snippet, index) => (
                         <p key={`${result.document.id}-${index}`} className="text-sm text-slate-300">
-                          {snippet}
+                          {highlightSnippet(snippet, query)}
                         </p>
                       ))}
                     </div>

@@ -10,67 +10,179 @@ type SearchResult = {
   matchedIn: "title" | "summary" | "content";
 };
 
-function normalizeForSearch(text: string) {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+type NormalizedText = {
+  normalized: string;
+  indexMap: number[];
+};
+
+function normalizeForSearch(text: string): string {
+  return buildNormalizedText(text).normalized;
+}
+
+function buildNormalizedText(text: string): NormalizedText {
+  let normalized = "";
+  const indexMap: number[] = [];
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const folded = char
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+    for (const foldedChar of folded) {
+      normalized += foldedChar;
+      indexMap.push(index);
+    }
+  }
+
+  return { normalized, indexMap };
 }
 
 function sanitizeSnippetText(text: string) {
   return text
     .replace(/\u0000/g, " ")
     .replace(/\uFFFD/g, " ")
+    .replace(/[•●▪◦]/g, " ")
     .replace(/[ \t]+/g, " ")
-    .replace(/\s*\n\s*/g, "\n")
+    .replace(/\s*\n\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
     .trim();
 }
 
-function buildSnippet(text: string, query: string) {
-  const normalizedQuery = normalizeForSearch(query);
-  const sanitizedText = sanitizeSnippetText(text);
-  const paragraphs = sanitizedText
-    .split(/\n{2,}|(?<=[.!?])\s{2,}/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean);
-
-  const bestParagraph =
-    paragraphs.find((paragraph) =>
-      normalizeForSearch(paragraph).includes(normalizedQuery),
-    ) ?? sanitizedText;
-
-  const normalizedText = normalizeForSearch(bestParagraph);
-  const matchIndex = normalizedText.indexOf(normalizedQuery);
-
-  if (matchIndex === -1) {
-    return bestParagraph.slice(0, 220).trim();
+function moveToWordBoundaryStart(text: string, index: number) {
+  let cursor = Math.max(0, index);
+  while (cursor > 0 && /\S/.test(text[cursor - 1] ?? "")) {
+    cursor -= 1;
   }
-
-  const snippetWindow = 180;
-  const start = Math.max(0, matchIndex - 120);
-  const end = Math.min(bestParagraph.length, matchIndex + query.length + snippetWindow);
-  const prefix = start > 0 ? "..." : "";
-  const suffix = end < bestParagraph.length ? "..." : "";
-  return `${prefix}${bestParagraph.slice(start, end).trim()}${suffix}`;
+  return cursor;
 }
 
-function extractMatchingSnippets(text: string, query: string, limit = 3) {
-  const normalizedQuery = normalizeForSearch(query);
+function moveToWordBoundaryEnd(text: string, index: number) {
+  let cursor = Math.min(text.length, index);
+  while (cursor < text.length && /\S/.test(text[cursor] ?? "")) {
+    cursor += 1;
+  }
+  return cursor;
+}
+
+function buildSnippetFromRange(
+  text: string,
+  startIndex: number,
+  endIndex: number,
+  options?: { contextBefore?: number; contextAfter?: number },
+) {
   const sanitizedText = sanitizeSnippetText(text);
-  const paragraphs = sanitizedText
-    .split(/\n{2,}|(?<=[.!?])\s{2,}/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean);
-
-  const matches = paragraphs
-    .filter((paragraph) => normalizeForSearch(paragraph).includes(normalizedQuery))
-    .map((paragraph) => buildSnippet(paragraph, query));
-
-  if (matches.length > 0) {
-    return matches.slice(0, limit);
+  if (!sanitizedText) {
+    return "";
   }
 
-  return sanitizedText ? [buildSnippet(sanitizedText, query)] : [];
+  const contextBefore = options?.contextBefore ?? 120;
+  const contextAfter = options?.contextAfter ?? 160;
+  const rawStart = Math.max(0, startIndex - contextBefore);
+  const rawEnd = Math.min(sanitizedText.length, endIndex + contextAfter);
+  const start = moveToWordBoundaryStart(sanitizedText, rawStart);
+  const end = moveToWordBoundaryEnd(sanitizedText, rawEnd);
+  const prefix = start > 0 ? "..." : "";
+  const suffix = end < sanitizedText.length ? "..." : "";
+  return `${prefix}${sanitizedText.slice(start, end).trim()}${suffix}`;
+}
+
+type MatchRange = {
+  start: number;
+  end: number;
+};
+
+function extractMatchRanges(text: string, query: string) {
+  const sanitizedText = sanitizeSnippetText(text);
+  const trimmedQuery = query.trim();
+  if (!sanitizedText || !trimmedQuery) {
+    return [];
+  }
+
+  const { normalized, indexMap } = buildNormalizedText(sanitizedText);
+  const normalizedQuery = normalizeForSearch(trimmedQuery);
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const ranges: MatchRange[] = [];
+  let searchFrom = 0;
+
+  while (searchFrom < normalized.length) {
+    const matchIndex = normalized.indexOf(normalizedQuery, searchFrom);
+    if (matchIndex === -1) {
+      break;
+    }
+
+    const start = indexMap[matchIndex];
+    const lastNormalizedIndex = matchIndex + normalizedQuery.length - 1;
+    const end = (indexMap[lastNormalizedIndex] ?? start) + 1;
+
+    if (start !== undefined) {
+      ranges.push({ start, end });
+    }
+
+    searchFrom = matchIndex + normalizedQuery.length;
+  }
+
+  return ranges;
+}
+
+function mergeNearbyRanges(ranges: MatchRange[], gap = 80) {
+  if (ranges.length === 0) {
+    return [];
+  }
+
+  const merged: MatchRange[] = [];
+  const sortedRanges = [...ranges].sort((left, right) => left.start - right.start);
+  let current = { ...sortedRanges[0] };
+
+  for (let index = 1; index < sortedRanges.length; index += 1) {
+    const candidate = sortedRanges[index];
+    if (candidate.start <= current.end + gap) {
+      current.end = Math.max(current.end, candidate.end);
+      continue;
+    }
+
+    merged.push(current);
+    current = { ...candidate };
+  }
+
+  merged.push(current);
+  return merged;
+}
+
+function dedupeSnippets(snippets: string[]) {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+
+  for (const snippet of snippets) {
+    const key = normalizeForSearch(snippet).replace(/\s+/g, " ").trim();
+    if (!key || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    deduped.push(snippet);
+  }
+
+  return deduped;
+}
+
+function extractMatchingSnippets(text: string, query: string, limit = 4) {
+  const sanitizedText = sanitizeSnippetText(text);
+  const ranges = mergeNearbyRanges(extractMatchRanges(sanitizedText, query));
+
+  if (ranges.length === 0) {
+    return sanitizedText ? [buildSnippetFromRange(sanitizedText, 0, 0)] : [];
+  }
+
+  const snippets = ranges.map((range) =>
+    buildSnippetFromRange(sanitizedText, range.start, range.end),
+  );
+
+  return dedupeSnippets(snippets).slice(0, limit);
 }
 
 async function loadChunkTextByDocumentId(documentIds: string[]) {
@@ -145,7 +257,7 @@ export async function searchDocumentsByQuery(
       if (normalizeForSearch(title).includes(normalizedQuery)) {
         return {
           document,
-          snippets: [buildSnippet(summary || title, trimmedQuery)],
+          snippets: extractMatchingSnippets(summary || title, trimmedQuery, 1),
           matchedIn: "title" as const,
         };
       }
@@ -154,7 +266,7 @@ export async function searchDocumentsByQuery(
       if (normalizeForSearch(searchableSummary).includes(normalizedQuery)) {
         return {
           document,
-          snippets: [buildSnippet(searchableSummary, trimmedQuery)],
+          snippets: extractMatchingSnippets(searchableSummary, trimmedQuery, 1),
           matchedIn: "summary" as const,
         };
       }
