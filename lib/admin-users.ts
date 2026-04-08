@@ -44,6 +44,43 @@ function getSupabaseErrorMessage(error: unknown) {
   return "Error desconocido";
 }
 
+function isAuthUserNotFoundError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeError = error as {
+    message?: unknown;
+    status?: unknown;
+    code?: unknown;
+    name?: unknown;
+  };
+
+  if (maybeError.status === 404) {
+    return true;
+  }
+
+  if (typeof maybeError.code === "string") {
+    const code = maybeError.code.toLowerCase();
+    if (code.includes("not_found") || code.includes("user_not_found")) {
+      return true;
+    }
+  }
+
+  if (typeof maybeError.message === "string") {
+    const message = maybeError.message.toLowerCase();
+    if (
+      message.includes("not found") ||
+      message.includes("user not found") ||
+      message.includes("no rows")
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function getServiceClient() {
   const supabase = createSupabaseServiceServerClient();
   if (!supabase) {
@@ -105,10 +142,12 @@ async function getAuthUserById(userId: string) {
   const { data, error } = await supabase.auth.admin.getUserById(userId);
 
   if (error) {
-    if (error.message.toLowerCase().includes("not found")) {
+    if (isAuthUserNotFoundError(error)) {
       return null;
     }
-    throw error;
+    throw new AdminUsersError(
+      `Fallo en Supabase Auth admin al leer el usuario ${userId}: ${getSupabaseErrorMessage(error)}`,
+    );
   }
 
   return data.user ?? null;
@@ -297,12 +336,16 @@ export async function deleteManagedUser(actor: AppUser, formData: FormData) {
   if (authUser) {
     const { error: authError } = await supabase.auth.admin.deleteUser(userId);
     if (authError) {
-      throw authError;
+      throw new AdminUsersError(
+        `No fue posible eliminar el usuario en Supabase Auth: ${getSupabaseErrorMessage(authError)}`,
+      );
     }
   }
 
   const { error: profileError } = await supabase.from("users").delete().eq("id", userId);
   if (profileError) {
-    throw profileError;
+    throw new AdminUsersError(
+      `No fue posible eliminar el perfil en public.users: ${getSupabaseErrorMessage(profileError)}`,
+    );
   }
 }
