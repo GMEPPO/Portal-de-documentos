@@ -43,7 +43,7 @@ export function DocumentVersionForm({
     currentStatus: DocumentStatus;
     currentFileUrl?: string | null;
     currentFilename?: string | null;
-    hasReusableReviewPdf?: boolean;
+    hasReusableReviewFile?: boolean;
   };
 }) {
   const router = useRouter();
@@ -62,15 +62,15 @@ export function DocumentVersionForm({
   const targetStatus: DocumentStatus = "published";
   const isPublishingReviewedVersion =
     mode === "publish" && initialValues.currentStatus === "in_review";
-  const canReuseCurrentReviewPdf =
-    isPublishingReviewedVersion && Boolean(initialValues.hasReusableReviewPdf);
+  const canReuseCurrentReviewFile =
+    isPublishingReviewedVersion && Boolean(initialValues.hasReusableReviewFile);
 
   return (
     <form
       className="space-y-4"
       onSubmit={form.handleSubmit(
         async (values) => {
-          if (!mainFile && !canReuseCurrentReviewPdf) {
+          if (!mainFile && !canReuseCurrentReviewFile) {
             pushToast({
               id: crypto.randomUUID(),
               title: "Ficheiro obrigatorio",
@@ -220,17 +220,17 @@ export function DocumentVersionForm({
           Ao publicar um documento em revisao, a plataforma mantem a versao atual.
         </p>
       )}
-      {canReuseCurrentReviewPdf && (
+      {canReuseCurrentReviewFile && (
         <p className="text-xs text-slate-400">
-          Se nao carregares um novo PDF, a publicacao vai reutilizar o PDF atual da revisao.
+          Se nao carregares um novo ficheiro, a publicacao vai reutilizar o ficheiro atual da revisao.
         </p>
       )}
       <Textarea placeholder="Notas internas" {...form.register("internalNotes")} />
       <DocumentFilePicker
         onFileChange={setMainFile}
         acceptedFileTypesLabel={
-          canReuseCurrentReviewPdf
-            ? "PDF opcional para substituir o ficheiro atual"
+          canReuseCurrentReviewFile
+            ? "Ficheiro opcional para substituir o atual"
             : "PDF, Word, MP4 ou MP3"
         }
       />

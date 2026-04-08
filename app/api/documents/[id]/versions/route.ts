@@ -8,7 +8,7 @@ import {
 import { requireAuth } from "@/lib/auth";
 import { documentStatusSchema, versionSchema } from "@/lib/validations";
 import { deleteDocumentFiles } from "@/lib/storage-service";
-import { getDocumentFileType, isPdfFilename } from "@/lib/document-file";
+import { getDocumentFileType } from "@/lib/document-file";
 import { uploadDocumentAssets } from "@/lib/document-upload-service";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -40,11 +40,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
       const shouldReplaceCurrentVersion =
         statusAfterUpload === "published" && currentDoc.status === "in_review";
       const currentFilename = currentDoc.mainFilePath?.split("/").pop() ?? null;
-      const canReuseCurrentReviewPdf =
+      const currentFileType = currentFilename ? getDocumentFileType(currentFilename) : null;
+      const canReuseCurrentReviewFile =
         shouldReplaceCurrentVersion &&
-        Boolean(currentDoc.mainFilePath && currentFilename && isPdfFilename(currentFilename));
+        Boolean(currentDoc.mainFilePath && currentFilename && currentFileType);
 
-      if (!file && !canReuseCurrentReviewPdf) {
+      if (!file && !canReuseCurrentReviewFile) {
         return NextResponse.json({ error: "Ficheiro obrigatorio." }, { status: 400 });
       }
       if (file && !fileType) {

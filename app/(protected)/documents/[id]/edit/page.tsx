@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { DocumentVersionForm } from "@/components/documents/document-version-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuth } from "@/lib/auth";
-import { isPdfFilename } from "@/lib/document-file";
+import { getDocumentFileType, isPdfFilename } from "@/lib/document-file";
 import { getDocumentById } from "@/lib/documents-service";
 import { canEditDocument } from "@/lib/rbac";
 
@@ -24,10 +24,16 @@ export default async function EditDocumentPage({
   if (!canEditDocument(user.role)) notFound();
   const mode = searchParams?.mode === "publish" ? "publish" : "update";
   const currentFilename = doc.mainFilePath?.split("/").pop() ?? null;
+  const currentFileType = currentFilename ? getDocumentFileType(currentFilename) : null;
   const hasReusableReviewPdf =
     mode === "publish" &&
     doc.status === "in_review" &&
     Boolean(currentFilename && isPdfFilename(currentFilename));
+  const hasReusableReviewMedia =
+    mode === "publish" &&
+    doc.status === "in_review" &&
+    Boolean(currentFilename && (currentFileType === "video" || currentFileType === "audio"));
+  const hasReusableReviewFile = hasReusableReviewPdf || hasReusableReviewMedia;
 
   return (
     <Card>
@@ -35,8 +41,8 @@ export default async function EditDocumentPage({
         <CardTitle>{mode === "publish" ? "Publicar documento" : "Atualizar documento"}</CardTitle>
         <CardDescription>
           {mode === "publish"
-            ? hasReusableReviewPdf
-              ? "Podes publicar usando o PDF atual da revisao ou carregar um novo PDF para substituir o existente."
+            ? hasReusableReviewFile
+              ? "Podes publicar usando o ficheiro atual da revisao ou carregar um novo para substituir o existente."
               : "Sube um PDF, Word, MP4 ou MP3 final para publicar a versao atual."
             : "Carrega um novo ficheiro para publicar diretamente uma nova versao. Enquanto nao guardares, o documento atual continua publicado."}
         </CardDescription>
@@ -57,7 +63,7 @@ export default async function EditDocumentPage({
             currentStatus: doc.status,
             currentFileUrl: null,
             currentFilename,
-            hasReusableReviewPdf,
+            hasReusableReviewFile,
           }}
         />
       </CardContent>
