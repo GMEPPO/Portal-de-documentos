@@ -28,6 +28,19 @@ function getSupabaseErrorMessage(error: unknown) {
     return error.message;
   }
 
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const maybeMessage = (error as { message?: unknown }).message;
+    if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+      return maybeMessage;
+    }
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    // noop
+  }
+
   return "Error desconocido";
 }
 
