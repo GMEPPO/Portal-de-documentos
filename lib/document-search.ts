@@ -17,20 +17,41 @@ function normalizeForSearch(text: string) {
     .toLowerCase();
 }
 
+function sanitizeSnippetText(text: string) {
+  return text
+    .replace(/\u0000/g, " ")
+    .replace(/\uFFFD/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .trim();
+}
+
 function buildSnippet(text: string, query: string) {
-  const normalizedText = normalizeForSearch(text);
   const normalizedQuery = normalizeForSearch(query);
+  const sanitizedText = sanitizeSnippetText(text);
+  const paragraphs = sanitizedText
+    .split(/\n{2,}|(?<=[.!?])\s{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
+  const bestParagraph =
+    paragraphs.find((paragraph) =>
+      normalizeForSearch(paragraph).includes(normalizedQuery),
+    ) ?? sanitizedText;
+
+  const normalizedText = normalizeForSearch(bestParagraph);
   const matchIndex = normalizedText.indexOf(normalizedQuery);
 
   if (matchIndex === -1) {
-    return text.slice(0, 220).trim();
+    return bestParagraph.slice(0, 220).trim();
   }
 
+  const snippetWindow = 180;
   const start = Math.max(0, matchIndex - 120);
-  const end = Math.min(text.length, matchIndex + query.length + 120);
+  const end = Math.min(bestParagraph.length, matchIndex + query.length + snippetWindow);
   const prefix = start > 0 ? "..." : "";
-  const suffix = end < text.length ? "..." : "";
-  return `${prefix}${text.slice(start, end).trim()}${suffix}`;
+  const suffix = end < bestParagraph.length ? "..." : "";
+  return `${prefix}${bestParagraph.slice(start, end).trim()}${suffix}`;
 }
 
 async function loadChunkTextByDocumentId(documentIds: string[]) {
@@ -95,14 +116,14 @@ export async function searchDocumentsByQuery(
         canAccessDocumentStatus(user.role, document.status),
       );
 
-  const publishedDocuments = documents.filter((document) => document.status === "published");
+  const searchableDocuments = documents.filter((document) => document.status === "published");
   const normalizedQuery = normalizeForSearch(trimmedQuery);
   const chunkTextByDocumentId = await loadChunkTextByDocumentId(
-    publishedDocuments.map((document) => document.id),
+    searchableDocuments.map((document) => document.id),
   );
 
   const matches = await Promise.all(
-    publishedDocuments.map(async (document) => {
+    searchableDocuments.map(async (document) => {
       const title = document.title ?? "";
       const summary = document.summary ?? "";
       const category = document.categoryId ? getCategoryNameById(document.categoryId) : "";
