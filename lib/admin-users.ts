@@ -16,10 +16,27 @@ export interface ManagedUser extends AppUser {
   lastSignInAt: string | null;
 }
 
+class AdminUsersError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AdminUsersError";
+  }
+}
+
+function getSupabaseErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Error desconocido";
+}
+
 function getServiceClient() {
   const supabase = createSupabaseServiceServerClient();
   if (!supabase) {
-    throw new Error("Faltan las credenciales de servicio de Supabase.");
+    throw new AdminUsersError(
+      "Falta SUPABASE_SERVICE_ROLE_KEY o NEXT_PUBLIC_SUPABASE_URL en el entorno del servidor.",
+    );
   }
   return supabase;
 }
@@ -53,7 +70,11 @@ async function listAllAuthUsers() {
 
   while (true) {
     const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
-    if (error) throw error;
+    if (error) {
+      throw new AdminUsersError(
+        `Fallo en Supabase Auth admin al listar usuarios: ${getSupabaseErrorMessage(error)}`,
+      );
+    }
 
     users.push(...data.users);
 
@@ -82,16 +103,16 @@ async function getAuthUserById(userId: string) {
 
 export async function listManagedUsers() {
   const supabase = getServiceClient();
-  const [authUsers, profilesResult] = await Promise.all([
-    listAllAuthUsers(),
-    supabase
-      .from("users")
-      .select("id, name, email, role, department, created_at")
-      .order("created_at", { ascending: true }),
-  ]);
+  const authUsers = await listAllAuthUsers();
+  const profilesResult = await supabase
+    .from("users")
+    .select("id, name, email, role, department, created_at")
+    .order("created_at", { ascending: true });
 
   if (profilesResult.error) {
-    throw profilesResult.error;
+    throw new AdminUsersError(
+      `Fallo al leer public.users con service role: ${getSupabaseErrorMessage(profilesResult.error)}`,
+    );
   }
 
   const profileMap = new Map(
