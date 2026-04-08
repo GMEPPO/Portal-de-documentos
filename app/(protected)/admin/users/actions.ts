@@ -17,6 +17,17 @@ function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;
   }
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const maybeMessage = (error as { message?: unknown }).message;
+    if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+      return maybeMessage;
+    }
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    // noop
+  }
   return "Ha ocurrido un error inesperado.";
 }
 
