@@ -132,7 +132,13 @@ export default async function DocumentsPage({
                           ? "Coincidencia no resumo"
                           : "Coincidencia no titulo"}
                     </p>
-                    <p className="text-sm text-slate-300">{result.snippet}</p>
+                    <div className="space-y-2">
+                      {result.snippets.map((snippet, index) => (
+                        <p key={`${result.document.id}-${index}`} className="text-sm text-slate-300">
+                          {snippet}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                   <div className="shrink-0">
                     <Button asChild size="sm" variant="outline">

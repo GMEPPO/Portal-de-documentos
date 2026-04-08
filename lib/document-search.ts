@@ -6,7 +6,7 @@ import type { AppUser, DocumentRecord } from "@/lib/types";
 
 type SearchResult = {
   document: DocumentRecord;
-  snippet: string;
+  snippets: string[];
   matchedIn: "title" | "summary" | "content";
 };
 
@@ -54,14 +54,33 @@ function buildSnippet(text: string, query: string) {
   return `${prefix}${bestParagraph.slice(start, end).trim()}${suffix}`;
 }
 
+function extractMatchingSnippets(text: string, query: string, limit = 3) {
+  const normalizedQuery = normalizeForSearch(query);
+  const sanitizedText = sanitizeSnippetText(text);
+  const paragraphs = sanitizedText
+    .split(/\n{2,}|(?<=[.!?])\s{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
+  const matches = paragraphs
+    .filter((paragraph) => normalizeForSearch(paragraph).includes(normalizedQuery))
+    .map((paragraph) => buildSnippet(paragraph, query));
+
+  if (matches.length > 0) {
+    return matches.slice(0, limit);
+  }
+
+  return sanitizedText ? [buildSnippet(sanitizedText, query)] : [];
+}
+
 async function loadChunkTextByDocumentId(documentIds: string[]) {
   if (documentIds.length === 0) {
-    return new Map<string, string>();
+    return new Map<string, string[]>();
   }
 
   const supabase = createSupabaseServiceServerClient();
   if (!supabase) {
-    return new Map<string, string>();
+    return new Map<string, string[]>();
   }
 
   const { data, error } = await supabase
@@ -76,7 +95,7 @@ async function loadChunkTextByDocumentId(documentIds: string[]) {
       message: error.message,
       documentIds,
     });
-    return new Map<string, string>();
+    return new Map<string, string[]>();
   }
 
   const grouped = new Map<string, string[]>();
@@ -92,12 +111,7 @@ async function loadChunkTextByDocumentId(documentIds: string[]) {
     grouped.set(documentId, current);
   }
 
-  return new Map(
-    Array.from(grouped.entries()).map(([documentId, chunks]) => [
-      documentId,
-      chunks.join("\n\n"),
-    ]),
-  );
+  return grouped;
 }
 
 export async function searchDocumentsByQuery(
@@ -131,7 +145,7 @@ export async function searchDocumentsByQuery(
       if (normalizeForSearch(title).includes(normalizedQuery)) {
         return {
           document,
-          snippet: buildSnippet(summary || title, trimmedQuery),
+          snippets: [buildSnippet(summary || title, trimmedQuery)],
           matchedIn: "title" as const,
         };
       }
@@ -140,7 +154,7 @@ export async function searchDocumentsByQuery(
       if (normalizeForSearch(searchableSummary).includes(normalizedQuery)) {
         return {
           document,
-          snippet: buildSnippet(searchableSummary, trimmedQuery),
+          snippets: [buildSnippet(searchableSummary, trimmedQuery)],
           matchedIn: "summary" as const,
         };
       }
@@ -149,16 +163,20 @@ export async function searchDocumentsByQuery(
       if (indexedSearchText && normalizeForSearch(indexedSearchText).includes(normalizedQuery)) {
         return {
           document,
-          snippet: buildSnippet(indexedSearchText, trimmedQuery),
+          snippets: extractMatchingSnippets(indexedSearchText, trimmedQuery, 3),
           matchedIn: "content" as const,
         };
       }
 
-      const chunkText = chunkTextByDocumentId.get(document.id)?.trim() ?? "";
-      if (chunkText && normalizeForSearch(chunkText).includes(normalizedQuery)) {
+      const chunkTexts = chunkTextByDocumentId.get(document.id) ?? [];
+      const snippets = chunkTexts.flatMap((chunkText) =>
+        extractMatchingSnippets(chunkText, trimmedQuery, 2),
+      );
+
+      if (snippets.length > 0) {
         return {
           document,
-          snippet: buildSnippet(chunkText, trimmedQuery),
+          snippets: snippets.slice(0, 4),
           matchedIn: "content" as const,
         };
       }
