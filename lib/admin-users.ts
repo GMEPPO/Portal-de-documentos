@@ -304,15 +304,33 @@ async function assertUserHasNoReferences(userId: string) {
     supabase.from("audit_logs").select("id", { count: "exact", head: true }).eq("actor_id", userId),
   ]);
 
-  const failed = checks.find((result) => result.error);
-  if (failed?.error) {
-    throw failed.error;
+  const labels = [
+    "documents.author_id",
+    "documents.owner_id",
+    "document_comments.author_id",
+    "document_versions.created_by",
+    "audit_logs.actor_id",
+  ];
+
+  const failedIndex = checks.findIndex((result) => result.error);
+  if (failedIndex >= 0) {
+    throw new AdminUsersError(
+      `No fue posible verificar referencias en ${labels[failedIndex]}: ${getSupabaseErrorMessage(
+        checks[failedIndex].error,
+      )}`,
+    );
   }
 
   const totalReferences = checks.reduce((sum, result) => sum + (result.count ?? 0), 0);
   if (totalReferences > 0) {
+    const breakdown = checks
+      .map((result, index) => ({ label: labels[index], count: result.count ?? 0 }))
+      .filter((item) => item.count > 0)
+      .map((item) => `${item.label}=${item.count}`)
+      .join(", ");
+
     throw new Error(
-      "No se puede eliminar este usuario porque tiene documentos, versiones, comentarios o auditoria asociados.",
+      `No se puede eliminar este usuario porque tiene referencias asociadas${breakdown ? `: ${breakdown}` : "."}`,
     );
   }
 }
