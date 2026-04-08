@@ -43,6 +43,7 @@ export function DocumentVersionForm({
     currentStatus: DocumentStatus;
     currentFileUrl?: string | null;
     currentFilename?: string | null;
+    hasReusableReviewPdf?: boolean;
   };
 }) {
   const router = useRouter();
@@ -61,13 +62,15 @@ export function DocumentVersionForm({
   const targetStatus: DocumentStatus = mode === "publish" ? "published" : "updating";
   const isPublishingReviewedVersion =
     mode === "publish" && initialValues.currentStatus === "in_review";
+  const canReuseCurrentReviewPdf =
+    isPublishingReviewedVersion && Boolean(initialValues.hasReusableReviewPdf);
 
   return (
     <form
       className="space-y-4"
       onSubmit={form.handleSubmit(
         async (values) => {
-          if (!mainFile) {
+          if (!mainFile && !canReuseCurrentReviewPdf) {
             pushToast({
               id: crypto.randomUUID(),
               title: "Ficheiro obrigatorio",
@@ -76,8 +79,8 @@ export function DocumentVersionForm({
             return;
           }
 
-          const fileType = getDocumentFileType(mainFile.name);
-          if (!fileType) {
+          const fileType = mainFile ? getDocumentFileType(mainFile.name) : null;
+          if (mainFile && !fileType) {
             pushToast({
               id: crypto.randomUUID(),
               title: "Formato nao suportado",
@@ -87,7 +90,9 @@ export function DocumentVersionForm({
           }
 
           const formData = new FormData();
-          formData.append("mainFile", mainFile, mainFile.name);
+          if (mainFile) {
+            formData.append("mainFile", mainFile, mainFile.name);
+          }
           formData.append("versionNumber", String(values.versionNumber));
           formData.append("summary", values.summary);
           formData.append("department", values.department);
@@ -123,15 +128,15 @@ export function DocumentVersionForm({
             title: mode === "publish" ? "Documento publicado" : "Versao carregada",
             description:
               mode === "publish"
-                ? `${getDocumentFileTypeLabel(fileType)} publicado com sucesso. A indexacao da pesquisa sera enviada ao n8n em seguida.`
+                ? `${getDocumentFileTypeLabel(fileType ?? "document")} publicado com sucesso. A indexacao da pesquisa sera enviada ao n8n em seguida.`
                 : "A nova versao ficou em atualizacao. A indexacao da pesquisa sera enviada ao n8n em seguida.",
           });
 
           console.info("[document-version-form] triggering /process", {
             documentId,
             mode,
-            filename: mainFile.name,
-            fileType,
+            filename: mainFile?.name ?? initialValues.currentFilename ?? "existing-file",
+            fileType: fileType ?? "document",
           });
           void fetch(`/api/documents/${documentId}/process`, {
             method: "POST",
@@ -215,8 +220,20 @@ export function DocumentVersionForm({
           Ao publicar um documento em revisao, a plataforma mantem a versao atual.
         </p>
       )}
+      {canReuseCurrentReviewPdf && (
+        <p className="text-xs text-slate-400">
+          Se nao carregares um novo PDF, a publicacao vai reutilizar o PDF atual da revisao.
+        </p>
+      )}
       <Textarea placeholder="Notas internas" {...form.register("internalNotes")} />
-      <DocumentFilePicker onFileChange={setMainFile} />
+      <DocumentFilePicker
+        onFileChange={setMainFile}
+        acceptedFileTypesLabel={
+          canReuseCurrentReviewPdf
+            ? "PDF opcional para substituir o ficheiro atual"
+            : "PDF, Word, MP4 ou MP3"
+        }
+      />
       <Button type="submit" disabled={form.formState.isSubmitting}>
         {form.formState.isSubmitting
           ? mode === "publish"

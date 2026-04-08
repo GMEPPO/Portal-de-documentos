@@ -8,7 +8,7 @@ import {
 import { requireAuth } from "@/lib/auth";
 import { documentStatusSchema, versionSchema } from "@/lib/validations";
 import { deleteDocumentFiles } from "@/lib/storage-service";
-import { getDocumentFileType } from "@/lib/document-file";
+import { getDocumentFileType, isPdfFilename } from "@/lib/document-file";
 import { uploadDocumentAssets } from "@/lib/document-upload-service";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -26,25 +26,50 @@ export async function POST(request: Request, { params }: { params: { id: string 
       const file = mainFile instanceof File ? mainFile : null;
       const fileType = file ? getDocumentFileType(file.name) : null;
 
-      if (!file) {
+      failedStep = "leitura do documento atual";
+      const currentDoc = await getDocumentById(params.id);
+      if (!currentDoc) {
+        return NextResponse.json({ error: "Documento no encontrado." }, { status: 404 });
+      }
+
+      const statusAfterUpload =
+        typeof form.get("statusAfterUpload") === "string"
+          ? documentStatusSchema.parse(form.get("statusAfterUpload"))
+          : null;
+
+      const shouldReplaceCurrentVersion =
+        statusAfterUpload === "published" && currentDoc.status === "in_review";
+      const currentFilename = currentDoc.mainFilePath?.split("/").pop() ?? null;
+      const canReuseCurrentReviewPdf =
+        shouldReplaceCurrentVersion &&
+        Boolean(currentDoc.mainFilePath && currentFilename && isPdfFilename(currentFilename));
+
+      if (!file && !canReuseCurrentReviewPdf) {
         return NextResponse.json({ error: "Ficheiro obrigatorio." }, { status: 400 });
       }
-      if (!fileType) {
+      if (file && !fileType) {
         return NextResponse.json(
           { error: "Formato nao suportado. Usa PDF, Word, MP4 ou MP3." },
           { status: 400 },
         );
       }
 
-      failedStep = "upload do ficheiro";
-      const uploaded = await uploadDocumentAssets(params.id, file);
+      const uploaded = file
+        ? await uploadDocumentAssets(params.id, file)
+        : {
+            mainFilePath: currentDoc.mainFilePath as string,
+            previewFilePath: currentDoc.previewFilePath,
+            uploadedPaths: [] as string[],
+          };
       uploadedPaths = uploaded.uploadedPaths;
 
-      failedStep = "validacao da versao";
-      const statusAfterUpload =
-        typeof form.get("statusAfterUpload") === "string"
-          ? documentStatusSchema.parse(form.get("statusAfterUpload"))
-          : null;
+      const resolvedFileType = fileType ?? (currentFilename ? getDocumentFileType(currentFilename) : null);
+      if (!resolvedFileType) {
+        return NextResponse.json(
+          { error: "Nao foi possivel determinar o tipo do ficheiro atual." },
+          { status: 400 },
+        );
+      }
 
       const versionPayload = versionSchema.parse({
         changelog:
@@ -52,22 +77,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
             ? form.get("changelog")
             : "Nova versao do documento",
         filePath: uploaded.mainFilePath,
-        fileType,
+        fileType: resolvedFileType,
         previewFilePath: uploaded.previewFilePath,
         versionNumber:
           typeof form.get("versionNumber") === "string"
             ? Number(form.get("versionNumber"))
             : 1,
       });
-
-      failedStep = "leitura do documento atual";
-      const currentDoc = await getDocumentById(params.id);
-      if (!currentDoc) {
-        return NextResponse.json({ error: "Documento no encontrado." }, { status: 404 });
-      }
-
-      const shouldReplaceCurrentVersion =
-        statusAfterUpload === "published" && currentDoc.status === "in_review";
 
       failedStep = "gravacao da versao";
       const version = shouldReplaceCurrentVersion
