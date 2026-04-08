@@ -31,13 +31,29 @@ export default async function AdminUsersPage({
   };
 }) {
   const currentUser = await requireAdmin();
-  const users = await listManagedUsers();
+  let users = [] as Awaited<ReturnType<typeof listManagedUsers>>;
+  let loadError: string | null = null;
+
+  try {
+    users = await listManagedUsers();
+  } catch (error) {
+    loadError =
+      error instanceof Error
+        ? error.message
+        : "No fue posible cargar la gestion de usuarios.";
+  }
 
   return (
     <div className="space-y-6">
       {searchParams?.message ? (
         <div className={`rounded-lg border px-4 py-3 text-sm ${messageStyles(searchParams.status)}`}>
           {searchParams.message}
+        </div>
+      ) : null}
+
+      {loadError ? (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          {loadError}
         </div>
       ) : null}
 
@@ -52,19 +68,36 @@ export default async function AdminUsersPage({
           <form action={createUserAction} className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <label className="space-y-2">
               <span className="text-sm text-slate-300">Nombre</span>
-              <Input name="name" placeholder="Nombre completo" required />
+              <Input name="name" placeholder="Nombre completo" required disabled={Boolean(loadError)} />
             </label>
             <label className="space-y-2">
               <span className="text-sm text-slate-300">Email</span>
-              <Input name="email" type="email" placeholder="usuario@empresa.com" required />
+              <Input
+                name="email"
+                type="email"
+                placeholder="usuario@empresa.com"
+                required
+                disabled={Boolean(loadError)}
+              />
             </label>
             <label className="space-y-2">
               <span className="text-sm text-slate-300">Contrasena temporal</span>
-              <Input name="password" type="password" minLength={8} required />
+              <Input
+                name="password"
+                type="password"
+                minLength={8}
+                required
+                disabled={Boolean(loadError)}
+              />
             </label>
             <label className="space-y-2">
               <span className="text-sm text-slate-300">Departamento</span>
-              <Input name="department" placeholder="Departamento" required />
+              <Input
+                name="department"
+                placeholder="Departamento"
+                required
+                disabled={Boolean(loadError)}
+              />
             </label>
             <label className="space-y-2">
               <span className="text-sm text-slate-300">Rol</span>
@@ -72,6 +105,7 @@ export default async function AdminUsersPage({
                 name="role"
                 required
                 defaultValue="viewer"
+                disabled={Boolean(loadError)}
                 className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 {adminRoleOptions.map((role) => (
@@ -85,6 +119,7 @@ export default async function AdminUsersPage({
               <AdminFormSubmitButton
                 label="Crear usuario"
                 pendingLabel="Creando usuario..."
+                disabled={Boolean(loadError)}
               />
             </div>
           </form>
@@ -99,6 +134,12 @@ export default async function AdminUsersPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!loadError && users.length === 0 ? (
+            <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-4 text-sm text-slate-300">
+              No hay usuarios disponibles para mostrar.
+            </div>
+          ) : null}
+
           {users.map((user) => {
             const isCurrentAdmin = user.id === currentUser.id;
 
