@@ -25,6 +25,7 @@ export function DocumentsFilters({
   categories,
   departments,
   statuses,
+  labels,
 }: {
   initialQuery: string;
   initialStatus: string;
@@ -33,6 +34,14 @@ export function DocumentsFilters({
   categories: Option[];
   departments: Option[];
   statuses: Option[];
+  labels: {
+    queryPlaceholder: string;
+    status: string;
+    category: string;
+    department: string;
+    search: string;
+    clear: string;
+  };
 }) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
@@ -65,14 +74,14 @@ export function DocumentsFilters({
       <Input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Pesquisar titulo ou palavras dentro de documentos publicados..."
+        placeholder={labels.queryPlaceholder}
       />
       <Select value={status || "__all__"} onValueChange={(value) => setStatus(value === "__all__" ? "" : value)}>
         <SelectTrigger>
-          <SelectValue placeholder="Estado" />
+          <SelectValue placeholder={labels.status} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__all__">Estado</SelectItem>
+          <SelectItem value="__all__">{labels.status}</SelectItem>
           {statuses.map((item) => (
             <SelectItem key={item.value} value={item.value}>
               {item.label}
@@ -82,10 +91,10 @@ export function DocumentsFilters({
       </Select>
       <Select value={category || "__all__"} onValueChange={(value) => setCategory(value === "__all__" ? "" : value)}>
         <SelectTrigger>
-          <SelectValue placeholder="Categoria" />
+          <SelectValue placeholder={labels.category} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__all__">Categoria</SelectItem>
+          <SelectItem value="__all__">{labels.category}</SelectItem>
           {categories.map((item) => (
             <SelectItem key={item.value} value={item.value}>
               {item.label}
@@ -98,10 +107,10 @@ export function DocumentsFilters({
         onValueChange={(value) => setDepartment(value === "__all__" ? "" : value)}
       >
         <SelectTrigger>
-          <SelectValue placeholder="Departamento" />
+          <SelectValue placeholder={labels.department} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__all__">Departamento</SelectItem>
+          <SelectItem value="__all__">{labels.department}</SelectItem>
           {departments.map((item) => (
             <SelectItem key={item.value} value={item.value}>
               {item.label}
@@ -111,11 +120,11 @@ export function DocumentsFilters({
       </Select>
       <div className="md:col-span-4 flex flex-col gap-3 md:flex-row">
         <Button type="button" onClick={submitFilters}>
-          Pesquisar
+          {labels.search}
         </Button>
         {(initialQuery || initialStatus || initialCategory || initialDepartment || query || status || category || department) && (
           <Button type="button" variant="outline" onClick={clearFilters}>
-            Limpar
+            {labels.clear}
           </Button>
         )}
       </div>

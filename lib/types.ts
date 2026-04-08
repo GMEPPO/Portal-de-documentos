@@ -1,4 +1,5 @@
 export type UserRole = "viewer" | "editor" | "manager" | "admin";
+export type Locale = "pt-PT" | "es";
 
 export type DocumentStatus =
   | "in_review"

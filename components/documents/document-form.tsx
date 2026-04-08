@@ -23,9 +23,30 @@ import { departmentOptions } from "@/lib/constants";
 export function DocumentForm({
   onSubmit,
   categories,
+  labels,
 }: {
   onSubmit: (values: DocumentCreateInput, mainFile: File | null) => Promise<void>;
   categories: DocumentCategory[];
+  labels: {
+    unsupportedTitle: string;
+    unsupportedDescription: string;
+    titlePlaceholder: string;
+    summaryPlaceholder: string;
+    categoryPlaceholder: string;
+    noCategory: string;
+    departmentPlaceholder: string;
+    selectDepartment: string;
+    versionPlaceholder: string;
+    internalNotesPlaceholder: string;
+    save: string;
+    filePicker: {
+      attach: string;
+      helper: string;
+      browse: string;
+      remove: string;
+      defaultTypes: string;
+    };
+  };
 }) {
   const [mainFile, setMainFile] = useState<File | null>(null);
   const form = useForm<DocumentCreateInput>({
@@ -49,8 +70,8 @@ export function DocumentForm({
         if (mainFile && !getDocumentFileType(mainFile.name)) {
           pushToast({
             id: crypto.randomUUID(),
-            title: "Formato nao suportado",
-            description: "Usa apenas ficheiros PDF, Word, MP4 ou MP3.",
+            title: labels.unsupportedTitle,
+            description: labels.unsupportedDescription,
           });
           return;
         }
@@ -60,8 +81,8 @@ export function DocumentForm({
         setMainFile(null);
       })}
     >
-      <Input placeholder="Titulo" {...form.register("title")} />
-      <Textarea placeholder="Resumo tecnico" {...form.register("summary")} />
+      <Input placeholder={labels.titlePlaceholder} {...form.register("title")} />
+      <Textarea placeholder={labels.summaryPlaceholder} {...form.register("summary")} />
       <Select
         value={form.watch("categoryId") || "__none__"}
         onValueChange={(value) =>
@@ -71,10 +92,10 @@ export function DocumentForm({
         }
       >
         <SelectTrigger>
-          <SelectValue placeholder="Categoria" />
+          <SelectValue placeholder={labels.categoryPlaceholder} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__none__">Sem categoria</SelectItem>
+          <SelectItem value="__none__">{labels.noCategory}</SelectItem>
           {categories.map((category) => (
             <SelectItem key={category.id} value={category.id}>
               {category.name}
@@ -91,10 +112,10 @@ export function DocumentForm({
         }
       >
         <SelectTrigger>
-          <SelectValue placeholder="Departamento" />
+          <SelectValue placeholder={labels.departmentPlaceholder} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__none__">Seleciona um departamento</SelectItem>
+          <SelectItem value="__none__">{labels.selectDepartment}</SelectItem>
           {departmentOptions.map((department) => (
             <SelectItem key={department} value={department}>
               {department}
@@ -105,12 +126,15 @@ export function DocumentForm({
       <Input
         type="number"
         min={1}
-        placeholder="Versao"
+        placeholder={labels.versionPlaceholder}
         {...form.register("versionNumber", { valueAsNumber: true })}
       />
-      <Textarea placeholder="Notas internas" {...form.register("internalNotes")} />
-      <DocumentFilePicker onFileChange={setMainFile} />
-      <Button type="submit">Guardar documento</Button>
+      <Textarea placeholder={labels.internalNotesPlaceholder} {...form.register("internalNotes")} />
+      <DocumentFilePicker
+        onFileChange={setMainFile}
+        labels={labels.filePicker}
+      />
+      <Button type="submit">{labels.save}</Button>
     </form>
   );
 }

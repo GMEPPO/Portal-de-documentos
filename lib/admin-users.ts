@@ -171,7 +171,11 @@ export async function listManagedUsers() {
     (profilesResult.data ?? []).map((profile) => [profile.id, profile]),
   );
   const authMap = new Map(authUsers.map((user) => [user.id, user]));
-  const ids = new Set([...profileMap.keys(), ...authMap.keys()]);
+
+  // La gestion principal del portal vive en public.users.
+  // Si un usuario solo existe en Auth pero no en el perfil de app, no lo mostramos
+  // para evitar "fantasmas" tras un borrado parcial o desincronizaciones temporales.
+  const ids = new Set(profileMap.keys());
 
   return Array.from(ids)
     .map((id) => mapManagedUser(profileMap.get(id) ?? null, authMap.get(id)))

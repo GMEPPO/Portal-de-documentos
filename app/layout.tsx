@@ -1,19 +1,31 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { getLocale } from "@/lib/i18n";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: "Plataforma Documental Interna",
-  description: "Gestao documental empresarial com controlo de acesso e versoes.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = getLocale();
 
-export default function RootLayout({
+  return locale === "es"
+    ? {
+        title: "Plataforma Documental Interna",
+        description: "Gestión documental empresarial con control de acceso y versiones.",
+      }
+    : {
+        title: "Plataforma Documental Interna",
+        description: "Gestão documental empresarial com controlo de acesso e versões.",
+      };
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = getLocale();
+
   return (
-    <html lang="es" className="dark">
+    <html lang={locale} className="dark">
       <body className={inter.className}>{children}</body>
     </html>
   );

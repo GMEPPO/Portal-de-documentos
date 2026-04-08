@@ -5,10 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead } from "@/components/ui/table";
 import { requireAuth } from "@/lib/auth";
+import { getDictionary } from "@/lib/dictionary";
+import { getLocale } from "@/lib/i18n";
+import { getDocumentStatusLabels } from "@/lib/i18n-shared";
 import { departmentOptions, mockCategories } from "@/lib/constants";
 import { searchDocumentsByQuery } from "@/lib/document-search";
 import { listDocuments } from "@/lib/documents-service";
-import { canAccessDocumentStatus, documentStatusLabels } from "@/lib/rbac";
+import { canAccessDocumentStatus } from "@/lib/rbac";
 import type { DocumentStatus } from "@/lib/types";
 import type { ReactNode } from "react";
 
@@ -108,6 +111,9 @@ export default async function DocumentsPage({
   };
 }) {
   const user = await requireAuth();
+  const locale = getLocale();
+  const dictionary = getDictionary(locale);
+  const statusLabels = getDocumentStatusLabels(locale);
   const query = searchParams?.q?.trim() ?? "";
   const selectedStatus = searchParams?.status?.trim() ?? "";
   const selectedCategory = searchParams?.category?.trim() ?? "";
@@ -149,17 +155,17 @@ export default async function DocumentsPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Documentos</h1>
-          <p className="text-slate-400">Pesquisa, filtros e operacao documental.</p>
+          <h1 className="text-2xl font-semibold">{dictionary.documents.pageTitle}</h1>
+          <p className="text-slate-400">{dictionary.documents.pageDescription}</p>
         </div>
         <Button asChild>
-          <Link href="/documents/new">Novo documento</Link>
+          <Link href="/documents/new">{dictionary.documents.newButton}</Link>
         </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Filtros</CardTitle>
+          <CardTitle>{dictionary.documents.filtersTitle}</CardTitle>
         </CardHeader>
         <CardContent>
           <DocumentsFilters
@@ -169,7 +175,7 @@ export default async function DocumentsPage({
             initialDepartment={selectedDepartment}
             statuses={statusOptions.map((status) => ({
               value: status,
-              label: documentStatusLabels[status],
+              label: statusLabels[status],
             }))}
             categories={mockCategories.map((category) => ({
               value: category.id,
@@ -179,6 +185,7 @@ export default async function DocumentsPage({
               value: department,
               label: department,
             }))}
+            labels={dictionary.documents.filters}
           />
         </CardContent>
       </Card>
@@ -186,13 +193,11 @@ export default async function DocumentsPage({
       {showingSearchResults ? (
         <Card>
           <CardHeader>
-            <CardTitle>Resultados de pesquisa</CardTitle>
+            <CardTitle>{dictionary.documents.resultsTitle}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {searchResults.length === 0 && (
-              <p className="text-sm text-slate-400">
-                Nao foram encontrados documentos para os filtros aplicados.
-              </p>
+              <p className="text-sm text-slate-400">{dictionary.documents.noResults}</p>
             )}
             {searchResults.map((result) => (
               <div
@@ -205,14 +210,14 @@ export default async function DocumentsPage({
                       <p className="text-base font-medium text-slate-100">
                         {result.document.title}
                       </p>
-                      <DocumentStatusBadge status={result.document.status} />
+                      <DocumentStatusBadge status={result.document.status} locale={locale} />
                     </div>
                     <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
                       {result.matchedIn === "content"
-                        ? "Coincidencia no conteudo"
+                        ? dictionary.documents.match.content
                         : result.matchedIn === "summary"
-                          ? "Coincidencia no resumo"
-                          : "Coincidencia no titulo"}
+                          ? dictionary.documents.match.summary
+                          : dictionary.documents.match.title}
                     </p>
                     <div className="space-y-2">
                       {result.snippets.map((snippet, index) => (
@@ -224,7 +229,7 @@ export default async function DocumentsPage({
                   </div>
                   <div className="shrink-0">
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/documents/${result.document.id}`}>Ver detalhe</Link>
+                      <Link href={`/documents/${result.document.id}`}>{dictionary.documents.viewDetail}</Link>
                     </Button>
                   </div>
                 </div>
@@ -238,10 +243,10 @@ export default async function DocumentsPage({
             <Table>
               <THead>
                 <tr>
-                  <TH>Titulo</TH>
-                  <TH>Departamento</TH>
-                  <TH>Versao</TH>
-                  <TH>Estado</TH>
+                  <TH>{dictionary.documents.table.title}</TH>
+                  <TH>{dictionary.documents.table.department}</TH>
+                  <TH>{dictionary.documents.table.version}</TH>
+                  <TH>{dictionary.documents.table.status}</TH>
                   <TH />
                 </tr>
               </THead>
@@ -249,7 +254,7 @@ export default async function DocumentsPage({
                 {documents.length === 0 && (
                   <tr>
                     <TD colSpan={5} className="py-8 text-center text-slate-400">
-                      Sem documentos registados.
+                      {dictionary.documents.table.empty}
                     </TD>
                   </tr>
                 )}
@@ -259,11 +264,11 @@ export default async function DocumentsPage({
                     <TD>{doc.department}</TD>
                     <TD>{doc.currentVersion > 0 ? `v${doc.currentVersion}` : "-"}</TD>
                     <TD>
-                      <DocumentStatusBadge status={doc.status} />
+                      <DocumentStatusBadge status={doc.status} locale={locale} />
                     </TD>
                     <TD className="text-right">
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/documents/${doc.id}`}>Ver detalhe</Link>
+                        <Link href={`/documents/${doc.id}`}>{dictionary.documents.viewDetail}</Link>
                       </Button>
                     </TD>
                   </tr>
@@ -271,7 +276,7 @@ export default async function DocumentsPage({
                 {filteredDocuments.length === 0 && documents.length > 0 && (
                   <tr>
                     <TD colSpan={5} className="py-8 text-center text-slate-400">
-                      Nao existem documentos para os filtros selecionados.
+                      {dictionary.documents.table.filteredEmpty}
                     </TD>
                   </tr>
                 )}

@@ -5,27 +5,51 @@ import { DocumentForm } from "@/components/documents/document-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { pushToast } from "@/components/ui/toaster";
 import { mockCategories } from "@/lib/constants";
+import { getDictionary } from "@/lib/dictionary";
+import { getDocumentFileTypeLabel, interpolate, resolveLocale } from "@/lib/i18n-shared";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import { getDocumentFileType, getDocumentFileTypeLabel } from "@/lib/document-file";
+import { getDocumentFileType } from "@/lib/document-file";
 
 export default function NewDocumentPage() {
   const router = useRouter();
+  const locale = resolveLocale(typeof document !== "undefined" ? document.documentElement.lang : "pt-PT");
+  const dictionary = getDictionary(locale);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Novo documento</CardTitle>
-        <CardDescription>Registo inicial de metadados e classificacao.</CardDescription>
+        <CardTitle>{dictionary.documents.new.title}</CardTitle>
+        <CardDescription>{dictionary.documents.new.description}</CardDescription>
       </CardHeader>
       <CardContent>
         <DocumentForm
           categories={mockCategories}
+          labels={{
+            unsupportedTitle: dictionary.documents.new.unsupportedTitle,
+            unsupportedDescription: dictionary.documents.new.unsupportedDescription,
+            titlePlaceholder: dictionary.documents.form.titlePlaceholder,
+            summaryPlaceholder: dictionary.documents.form.summaryPlaceholder,
+            categoryPlaceholder: dictionary.documents.form.categoryPlaceholder,
+            noCategory: dictionary.documents.form.noCategory,
+            departmentPlaceholder: dictionary.documents.form.departmentPlaceholder,
+            selectDepartment: dictionary.documents.form.selectDepartment,
+            versionPlaceholder: dictionary.documents.form.versionPlaceholder,
+            internalNotesPlaceholder: dictionary.documents.form.internalNotesPlaceholder,
+            save: dictionary.documents.form.save,
+            filePicker: {
+              attach: dictionary.documents.filePicker.attach,
+              helper: dictionary.documents.filePicker.helper,
+              browse: dictionary.documents.filePicker.browse,
+              remove: dictionary.documents.filePicker.remove,
+              defaultTypes: dictionary.documents.filePicker.defaultTypes,
+            },
+          }}
           onSubmit={async (values, mainFile) => {
             if (!mainFile) {
               pushToast({
                 id: crypto.randomUUID(),
-                title: "Ficheiro obrigatorio",
-                description: "Debes adjuntar un ficheiro para criar o documento.",
+                title: dictionary.documents.new.fileRequiredTitle,
+                description: dictionary.documents.new.fileRequiredDescription,
               });
               return;
             }
@@ -34,8 +58,8 @@ export default function NewDocumentPage() {
             if (!fileType) {
               pushToast({
                 id: crypto.randomUUID(),
-                title: "Formato nao suportado",
-                description: "Usa apenas ficheiros PDF, Word, MP4 ou MP3.",
+                title: dictionary.documents.new.unsupportedTitle,
+                description: dictionary.documents.new.unsupportedDescription,
               });
               return;
             }
@@ -45,8 +69,8 @@ export default function NewDocumentPage() {
               if (!supabase) {
                 pushToast({
                   id: crypto.randomUUID(),
-                  title: "Supabase indisponivel",
-                  description: "Nao foi possivel inicializar o cliente de upload.",
+                  title: dictionary.documents.new.supabaseTitle,
+                  description: dictionary.documents.new.supabaseDescription,
                 });
                 return;
               }
@@ -64,10 +88,10 @@ export default function NewDocumentPage() {
               if (!prepareResponse.ok) {
                 pushToast({
                   id: crypto.randomUUID(),
-                  title: "Nao foi possivel preparar o tutorial",
+                  title: dictionary.documents.new.prepareMediaTitle,
                   description:
                     (prepareData?.error as string | undefined) ??
-                    "Falha ao preparar o upload multimedia.",
+                    dictionary.documents.new.prepareMediaDescription,
                 });
                 return;
               }
@@ -79,8 +103,8 @@ export default function NewDocumentPage() {
               if (!documentId || !objectPath || !bucket) {
                 pushToast({
                   id: crypto.randomUUID(),
-                  title: "Resposta incompleta",
-                  description: "Nao foi possivel obter o destino de upload multimedia.",
+                  title: dictionary.documents.new.incompleteTitle,
+                  description: dictionary.documents.new.incompleteDescription,
                 });
                 return;
               }
@@ -96,7 +120,7 @@ export default function NewDocumentPage() {
 
                 pushToast({
                   id: crypto.randomUUID(),
-                  title: "Falha no upload do ficheiro",
+                  title: dictionary.documents.new.uploadFailureTitle,
                   description: uploadResult.error.message,
                 });
                 return;
@@ -118,18 +142,20 @@ export default function NewDocumentPage() {
               if (!finalizeResponse.ok) {
                 pushToast({
                   id: crypto.randomUUID(),
-                  title: "Nao foi possivel finalizar o tutorial",
+                  title: dictionary.documents.new.finalizeMediaTitle,
                   description:
                     (finalizeData?.error as string | undefined) ??
-                    "Falha ao registar o upload multimedia.",
+                    dictionary.documents.new.finalizeMediaDescription,
                 });
                 return;
               }
 
               pushToast({
                 id: crypto.randomUUID(),
-                title: "Conteudo multimedia criado",
-                description: `${getDocumentFileTypeLabel(fileType)} carregado com sucesso. Podera ser reproduzido na web depois de publicado.`,
+                title: dictionary.documents.new.mediaSuccessTitle,
+                description: interpolate(dictionary.documents.new.mediaCreatedDescription, {
+                  fileType: getDocumentFileTypeLabel(fileType, locale),
+                }),
               });
               router.push("/documents");
               return;
@@ -156,10 +182,10 @@ export default function NewDocumentPage() {
               const data = await response.json().catch(() => null);
               const message =
                 (data?.error as string | undefined) ??
-                "Falha ao criar documento.";
+                dictionary.documents.new.createFailureDescription;
               pushToast({
                 id: crypto.randomUUID(),
-                title: "Nao foi possivel criar o documento",
+                title: dictionary.documents.new.createFailureTitle,
                 description: message,
               });
               return;
@@ -195,8 +221,8 @@ export default function NewDocumentPage() {
 
             pushToast({
               id: crypto.randomUUID(),
-              title: "Documento criado",
-              description: "O registo foi criado com sucesso. A indexacao da pesquisa sera enviada ao n8n em segundo plano.",
+              title: dictionary.documents.new.createdTitle,
+              description: dictionary.documents.new.createdDescription,
             });
             router.push("/documents");
           }}

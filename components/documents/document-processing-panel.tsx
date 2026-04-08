@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { pushToast } from "@/components/ui/toaster";
-import {
-  documentProcessingStatusLabels,
-  shouldAutoStartDocumentProcessing,
-} from "@/lib/document-processing";
-import type { DocumentFileType, DocumentProcessingStatus } from "@/lib/types";
+import { getDictionary } from "@/lib/dictionary";
+import { getDocumentProcessingStatusLabels } from "@/lib/i18n-shared";
+import { shouldAutoStartDocumentProcessing as shouldProcess } from "@/lib/document-processing";
+import type { DocumentFileType, DocumentProcessingStatus, Locale } from "@/lib/types";
 
 export function DocumentProcessingPanel({
   documentId,
@@ -17,14 +16,18 @@ export function DocumentProcessingPanel({
   searchStatus,
   searchError,
   canRetry,
+  locale,
 }: {
   documentId: string;
   fileType: DocumentFileType;
   searchStatus: DocumentProcessingStatus;
   searchError?: string;
   canRetry: boolean;
+  locale: Locale;
 }) {
   const router = useRouter();
+  const dictionary = getDictionary(locale);
+  const statusLabels = getDocumentProcessingStatusLabels(locale);
   const [isProcessing, setIsProcessing] = useState(false);
   const autoStarted = useRef(false);
 
@@ -39,9 +42,9 @@ export function DocumentProcessingPanel({
       const data = await response.json().catch(() => null);
       pushToast({
         id: crypto.randomUUID(),
-        title: "Nao foi possivel processar o documento",
+        title: dictionary.documents.processing.errorTitle,
         description:
-          (data?.error as string | undefined) ?? "Erro ao gerar preview ou pesquisa interna.",
+          (data?.error as string | undefined) ?? dictionary.documents.processing.errorDescription,
       });
       return;
     }
@@ -49,8 +52,8 @@ export function DocumentProcessingPanel({
     if (showSuccessToast) {
       pushToast({
         id: crypto.randomUUID(),
-        title: "Indexacao enviada",
-        description: "O pedido de indexacao foi enviado ao n8n com sucesso.",
+        title: dictionary.documents.processing.successTitle,
+        description: dictionary.documents.processing.successDescription,
       });
     }
 
@@ -59,7 +62,7 @@ export function DocumentProcessingPanel({
 
   useEffect(() => {
     if (autoStarted.current) return;
-    if (!shouldAutoStartDocumentProcessing(fileType, searchStatus)) return;
+    if (!shouldProcess(fileType, searchStatus)) return;
 
     autoStarted.current = true;
     void runProcessing(false);
@@ -69,16 +72,16 @@ export function DocumentProcessingPanel({
     <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="space-y-2">
-          <p className="text-sm font-medium text-slate-100">Indexacao do documento</p>
+          <p className="text-sm font-medium text-slate-100">{dictionary.documents.processing.title}</p>
           <div className="flex flex-wrap gap-2 text-xs">
-            <Badge>Pesquisa: {documentProcessingStatusLabels[searchStatus]}</Badge>
+            <Badge>{dictionary.documents.processing.search}: {statusLabels[searchStatus]}</Badge>
           </div>
           {searchError && <p className="text-xs text-amber-300">Pesquisa: {searchError}</p>}
           {(isProcessing ||
             searchStatus === "pending" ||
             searchStatus === "processing") && (
             <p className="text-xs text-slate-400">
-              A plataforma esta a enviar ou a acompanhar a indexacao da pesquisa em segundo plano.
+              {dictionary.documents.processing.pending}
             </p>
           )}
         </div>
@@ -89,7 +92,7 @@ export function DocumentProcessingPanel({
             disabled={isProcessing}
             onClick={() => void runProcessing(true)}
           >
-            {isProcessing ? "A processar..." : "Tentar novamente"}
+            {isProcessing ? dictionary.documents.processing.retrying : dictionary.documents.processing.retry}
           </Button>
         )}
       </div>

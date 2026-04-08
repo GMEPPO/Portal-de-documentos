@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { pushToast } from "@/components/ui/toaster";
+import { getDictionary } from "@/lib/dictionary";
+import type { Locale } from "@/lib/types";
 
 type CommentItem = {
   id: string;
@@ -15,20 +17,23 @@ type CommentItem = {
 export function DocumentCommentsPanel({
   documentId,
   comments,
+  locale,
 }: {
   documentId: string;
   comments: CommentItem[];
+  locale: Locale;
 }) {
   const router = useRouter();
+  const dictionary = getDictionary(locale);
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
-        <p className="mb-3 text-sm font-medium text-slate-100">Adicionar comentario</p>
+        <p className="mb-3 text-sm font-medium text-slate-100">{dictionary.documents.comments.title}</p>
         <Textarea
-          placeholder="Escreve aqui uma observacao, correcao ou nota sobre este documento."
+          placeholder={dictionary.documents.comments.placeholder}
           value={content}
           onChange={(event) => setContent(event.target.value)}
         />
@@ -40,8 +45,8 @@ export function DocumentCommentsPanel({
               if (trimmed.length < 2) {
                 pushToast({
                   id: crypto.randomUUID(),
-                  title: "Comentario demasiado curto",
-                  description: "Escreve pelo menos 2 caracteres.",
+                  title: dictionary.documents.comments.tooShortTitle,
+                  description: dictionary.documents.comments.tooShortDescription,
                 });
                 return;
               }
@@ -58,10 +63,10 @@ export function DocumentCommentsPanel({
                   const data = await response.json().catch(() => null);
                   pushToast({
                     id: crypto.randomUUID(),
-                    title: "Nao foi possivel guardar o comentario",
+                    title: dictionary.documents.comments.saveErrorTitle,
                     description:
                       (data?.error as string | undefined) ??
-                      "Erro ao guardar o comentario.",
+                      dictionary.documents.comments.saveErrorDescription,
                   });
                   return;
                 }
@@ -69,8 +74,8 @@ export function DocumentCommentsPanel({
                 setContent("");
                 pushToast({
                   id: crypto.randomUUID(),
-                  title: "Comentario adicionado",
-                  description: "O comentario foi registado com sucesso.",
+                  title: dictionary.documents.comments.successTitle,
+                  description: dictionary.documents.comments.successDescription,
                 });
                 router.refresh();
               } finally {
@@ -78,20 +83,20 @@ export function DocumentCommentsPanel({
               }
             }}
           >
-            {isSubmitting ? "A guardar..." : "Adicionar comentario"}
+            {isSubmitting ? dictionary.documents.comments.saving : dictionary.documents.comments.submit}
           </Button>
         </div>
       </div>
 
       <div className="space-y-2">
         {comments.length === 0 && (
-          <p className="text-slate-400">Sem comentarios registados.</p>
+          <p className="text-slate-400">{dictionary.documents.comments.empty}</p>
         )}
         {comments.map((item) => (
           <div key={item.id} className="rounded border border-slate-700 p-3">
             <p className="text-sm text-slate-200">{item.content}</p>
             <p className="mt-2 text-xs text-slate-400">
-              {new Date(item.createdAt).toLocaleString()}
+              {new Date(item.createdAt).toLocaleString(locale)}
             </p>
           </div>
         ))}

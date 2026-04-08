@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { requireAuth } from "@/lib/auth";
+import { getDictionary } from "@/lib/dictionary";
 import { getDocumentById, listDocumentHistory } from "@/lib/documents-service";
+import { getLocale } from "@/lib/i18n";
 import { getCategoryNameById } from "@/lib/constants";
 import { canAccessDocumentStatus, canEditDocument } from "@/lib/rbac";
 import { getDocumentFileSignedUrl } from "@/lib/storage-service";
@@ -47,6 +49,8 @@ function formatAuditEvent(item: DocumentAuditRecord) {
 
 export default async function DocumentDetailPage({ params }: { params: { id: string } }) {
   const user = await requireAuth();
+  const locale = getLocale();
+  const dictionary = getDictionary(locale);
   let doc = null;
   try {
     doc = await getDocumentById(params.id);
@@ -102,21 +106,22 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
         </div>
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-            <DocumentStatusBadge status={doc.status} />
+            <DocumentStatusBadge status={doc.status} locale={locale} />
             <Badge>{doc.currentVersion > 0 ? `v${doc.currentVersion}` : "-"}</Badge>
             {canManageDocument && (
               <Button asChild variant="outline">
-                <Link href={`/documents/${doc.id}/edit?mode=update`}>Editar</Link>
+                <Link href={`/documents/${doc.id}/edit?mode=update`}>{dictionary.documents.detail.edit}</Link>
               </Button>
             )}
             {canManageDocument && (
-              <DocumentDeleteButton documentId={doc.id} documentTitle={doc.title} />
+              <DocumentDeleteButton documentId={doc.id} documentTitle={doc.title} locale={locale} />
             )}
           </div>
           {canManageDocument && (
             <DocumentWorkflowActions
               documentId={doc.id}
               currentStatus={doc.status}
+              locale={locale}
             />
           )}
         </div>
@@ -124,23 +129,23 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
 
       <Card>
         <CardHeader>
-          <CardTitle>Metadados</CardTitle>
-          <CardDescription>Informacao estrutural e classificacao.</CardDescription>
+          <CardTitle>{dictionary.documents.detail.metadataTitle}</CardTitle>
+          <CardDescription>{dictionary.documents.detail.metadataDescription}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm text-slate-300 md:grid-cols-2">
-          <p>Departamento: {doc.department}</p>
-          <p>Categoria: {doc.categoryId ? getCategoryNameById(doc.categoryId) : "Sem categoria"}</p>
-          <p>Tipo: {doc.documentType}</p>
-          <p>Responsavel: {doc.ownerId}</p>
-          <p>Disponivel para todos: {doc.status === "published" ? "Sim" : "Nao"}</p>
-          <p>Atualizado: {new Date(doc.updatedAt).toLocaleString()}</p>
+          <p>{dictionary.documents.detail.fields.department}: {doc.department}</p>
+          <p>{dictionary.documents.detail.fields.category}: {doc.categoryId ? getCategoryNameById(doc.categoryId) : dictionary.documents.detail.fields.noCategory}</p>
+          <p>{dictionary.documents.detail.fields.type}: {doc.documentType}</p>
+          <p>{dictionary.documents.detail.fields.owner}: {doc.ownerId}</p>
+          <p>{dictionary.documents.detail.fields.available}: {doc.status === "published" ? dictionary.documents.detail.fields.yes : dictionary.documents.detail.fields.no}</p>
+          <p>{dictionary.documents.detail.fields.updatedAt}: {new Date(doc.updatedAt).toLocaleString(locale)}</p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Leitura do documento</CardTitle>
-          <CardDescription>Consulta do ficheiro principal diretamente na web.</CardDescription>
+          <CardTitle>{dictionary.documents.detail.readerTitle}</CardTitle>
+          <CardDescription>{dictionary.documents.detail.readerDescription}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {doc.documentType === "document" && (
@@ -153,6 +158,7 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
                 canManageDocument &&
                 (doc.previewStatus === "failed" || doc.searchStatus === "failed")
               }
+              locale={locale}
             />
           )}
           {fileUrl ? (
@@ -160,10 +166,11 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
               fileUrl={fileUrl}
               filename={readableFilename}
               fileType={doc.documentType}
+              locale={locale}
             />
           ) : (
             <div className="rounded-lg border border-dashed border-slate-700 p-6 text-sm text-slate-400">
-              Ainda nao existe ficheiro principal associado a este documento.
+              {dictionary.documents.detail.noMainFile}
             </div>
           )}
         </CardContent>
@@ -171,9 +178,9 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
 
       <Tabs defaultValue="versions">
         <TabsList>
-          <TabsTrigger value="versions">Versoes</TabsTrigger>
-          <TabsTrigger value="comments">Comentarios</TabsTrigger>
-          <TabsTrigger value="audit">Historico</TabsTrigger>
+          <TabsTrigger value="versions">{dictionary.documents.detail.tabs.versions}</TabsTrigger>
+          <TabsTrigger value="comments">{dictionary.documents.detail.tabs.comments}</TabsTrigger>
+          <TabsTrigger value="audit">{dictionary.documents.detail.tabs.audit}</TabsTrigger>
         </TabsList>
         <TabsContent value="versions" className="mt-3">
           <Card>
@@ -183,6 +190,7 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
                 versions={versions}
                 canDelete={canManageDocument}
                 currentVersion={doc.currentVersion}
+                locale={locale}
               />
             </CardContent>
           </Card>
@@ -193,6 +201,7 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
               <DocumentCommentsPanel
                 documentId={doc.id}
                 comments={history.comments}
+                locale={locale}
               />
             </CardContent>
           </Card>
@@ -200,10 +209,10 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
         <TabsContent value="audit" className="mt-3">
           <Card>
             <CardContent className="space-y-2 pt-5 text-sm">
-              {history.audits.length === 0 && <p className="text-slate-400">Sem eventos.</p>}
+              {history.audits.length === 0 && <p className="text-slate-400">{dictionary.documents.detail.noAudit}</p>}
               {history.audits.map((item) => (
                 <p key={item.id} className="rounded border border-slate-700 p-3">
-                  {new Date(item.at).toLocaleString()} - {formatAuditEvent(item)}
+                  {new Date(item.at).toLocaleString(locale)} - {formatAuditEvent(item)}
                 </p>
               ))}
             </CardContent>

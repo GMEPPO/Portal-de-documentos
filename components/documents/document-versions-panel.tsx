@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { pushToast } from "@/components/ui/toaster";
+import { getDictionary } from "@/lib/dictionary";
+import { interpolate } from "@/lib/i18n-shared";
+import type { Locale } from "@/lib/types";
 
 type VersionItem = {
   id: string;
@@ -19,16 +22,19 @@ export function DocumentVersionsPanel({
   versions,
   canDelete,
   currentVersion,
+  locale,
 }: {
   documentId: string;
   versions: VersionItem[];
   canDelete: boolean;
   currentVersion: number;
+  locale: Locale;
 }) {
   const router = useRouter();
+  const dictionary = getDictionary(locale);
 
   if (versions.length === 0) {
-    return <p className="text-slate-400">Sem versoes extra.</p>;
+    return <p className="text-slate-400">{dictionary.documents.versions.empty}</p>;
   }
 
   return (
@@ -51,12 +57,12 @@ export function DocumentVersionsPanel({
               <>
                 <Button asChild size="sm" variant="outline">
                   <a href={item.fileUrl} target="_blank" rel="noreferrer">
-                    Ver
+                    {dictionary.documents.versions.view}
                   </a>
                 </Button>
                 <Button asChild size="sm">
                   <a href={item.fileUrl} target="_blank" rel="noreferrer" download>
-                    Descargar
+                    {dictionary.documents.versions.download}
                   </a>
                 </Button>
               </>
@@ -67,7 +73,7 @@ export function DocumentVersionsPanel({
                 variant="outline"
                 onClick={async () => {
                   const confirmed = window.confirm(
-                    `Se eliminares a versao V${item.versionNumber}, sera apagada de forma permanente e nao podera ser recuperada.`,
+                    interpolate(dictionary.documents.versions.deleteConfirm, { version: item.versionNumber }),
                   );
                   if (!confirmed) return;
 
@@ -80,23 +86,23 @@ export function DocumentVersionsPanel({
                     const data = await response.json().catch(() => null);
                     pushToast({
                       id: crypto.randomUUID(),
-                      title: "Nao foi possivel eliminar a versao",
+                      title: dictionary.documents.versions.deleteErrorTitle,
                       description:
                         (data?.error as string | undefined) ??
-                        "Erro ao eliminar a versao.",
+                        dictionary.documents.versions.deleteErrorDescription,
                     });
                     return;
                   }
 
                   pushToast({
                     id: crypto.randomUUID(),
-                    title: "Versao eliminada",
-                    description: `A versao V${item.versionNumber} foi eliminada com sucesso.`,
-                  });
+                      title: dictionary.documents.versions.deletedTitle,
+                      description: interpolate(dictionary.documents.versions.deletedDescription, { version: item.versionNumber }),
+                    });
                   router.refresh();
                 }}
               >
-                Eliminar
+                {dictionary.documents.versions.delete}
               </Button>
             )}
           </div>

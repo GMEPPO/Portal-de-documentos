@@ -8,10 +8,17 @@ export function DocumentFilePicker({
   onFileChange,
   className,
   acceptedFileTypesLabel = "PDF, Word, MP4 ou MP3",
+  labels,
 }: {
   onFileChange: (file: File | null) => void;
   className?: string;
   acceptedFileTypesLabel?: string;
+  labels?: {
+    attach: string;
+    helper: string;
+    browse: string;
+    remove: string;
+  };
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -46,9 +53,10 @@ export function DocumentFilePicker({
         }}
       >
         <div className="min-w-0">
-          <p className="text-sm font-medium">Adjuntar ficheiro</p>
+          <p className="text-sm font-medium">{labels?.attach ?? "Adjuntar ficheiro"}</p>
           <p className="text-xs text-slate-400">
-            Arrasta e larga aqui ou seleciona um ficheiro. Formatos: {acceptedFileTypesLabel}
+            {(labels?.helper ?? "Arrasta e larga aqui ou seleciona um ficheiro. Formatos: {types}")
+              .replace("{types}", acceptedFileTypesLabel)}
           </p>
           {fileName && (
             <p className="mt-2 truncate text-xs text-slate-300">{fileName}</p>
@@ -61,7 +69,7 @@ export function DocumentFilePicker({
             variant="outline"
             onClick={() => inputRef.current?.click()}
           >
-            Buscar
+            {labels?.browse ?? "Buscar"}
           </Button>
         </div>
 
@@ -84,7 +92,7 @@ export function DocumentFilePicker({
           className="h-8 px-2 text-xs text-slate-300 hover:text-white"
           onClick={() => pickFile(null)}
         >
-          Remover ficheiro
+          {labels?.remove ?? "Remover ficheiro"}
         </Button>
       )}
     </div>

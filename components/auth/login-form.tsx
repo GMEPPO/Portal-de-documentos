@@ -9,14 +9,24 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-const loginSchema = z.object({
-  email: z.string().email("Email invalido"),
-  password: z.string().min(8, "A senha deve ter pelo menos 8 caracteres"),
-});
+type LoginInput = {
+  email: string;
+  password: string;
+};
 
-type LoginInput = z.infer<typeof loginSchema>;
-
-export function LoginForm() {
+export function LoginForm({
+  labels,
+}: {
+  labels: {
+    emailInvalid: string;
+    passwordInvalid: string;
+    supabaseMissing: string;
+    emailPlaceholder: string;
+    passwordPlaceholder: string;
+    submit: string;
+    submitting: string;
+  };
+}) {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
 
@@ -24,13 +34,18 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
 
   const form = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(
+      z.object({
+        email: z.string().email(labels.emailInvalid),
+        password: z.string().min(8, labels.passwordInvalid),
+      }),
+    ),
     defaultValues: { email: "", password: "" },
   });
 
   async function onSubmit(values: LoginInput) {
     if (!supabase) {
-      setErrorMessage("Supabase nao esta configurado (variaveis em Vercel).");
+      setErrorMessage(labels.supabaseMissing);
       return;
     }
 
@@ -56,7 +71,7 @@ export function LoginForm() {
     <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
       <div className="space-y-1">
         <Input
-          placeholder="Email"
+          placeholder={labels.emailPlaceholder}
           type="email"
           {...form.register("email")}
           aria-invalid={Boolean(form.formState.errors.email)}
@@ -68,7 +83,7 @@ export function LoginForm() {
 
       <div className="space-y-1">
         <Input
-          placeholder="Senha"
+          placeholder={labels.passwordPlaceholder}
           type="password"
           {...form.register("password")}
           aria-invalid={Boolean(form.formState.errors.password)}
@@ -81,7 +96,7 @@ export function LoginForm() {
       {errorMessage && <p className="text-sm text-red-400">{errorMessage}</p>}
 
       <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "A entrar..." : "Entrar"}
+        {loading ? labels.submitting : labels.submit}
       </Button>
     </form>
   );

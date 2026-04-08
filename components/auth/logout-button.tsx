@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Button } from "@/components/ui/button";
 
-export function LogoutButton() {
+export function LogoutButton({ label }: { label: string }) {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
 
@@ -20,7 +20,7 @@ export function LogoutButton() {
         router.refresh();
       }}
     >
-      Sair
+      {label}
     </Button>
   );
 }

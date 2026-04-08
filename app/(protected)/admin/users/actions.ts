@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { requireAdmin } from "@/lib/auth";
+import { getDictionary } from "@/lib/dictionary";
+import { getLocale } from "@/lib/i18n";
 import {
   createManagedUser,
   deleteManagedUser,
@@ -55,6 +57,7 @@ function redirectWithMessage(status: "success" | "error", message: string) {
 
 export async function createUserAction(formData: FormData) {
   const actor = await requireAdmin();
+  const dictionary = getDictionary(getLocale());
 
   try {
     await createManagedUser(actor, formData);
@@ -63,11 +66,12 @@ export async function createUserAction(formData: FormData) {
   }
 
   revalidatePath("/admin/users");
-  redirectWithMessage("success", "Usuario creado correctamente.");
+  redirectWithMessage("success", dictionary.admin.success.create);
 }
 
 export async function updateUserAction(formData: FormData) {
   const actor = await requireAdmin();
+  const dictionary = getDictionary(getLocale());
 
   try {
     await updateManagedUser(actor, formData);
@@ -76,11 +80,12 @@ export async function updateUserAction(formData: FormData) {
   }
 
   revalidatePath("/admin/users");
-  redirectWithMessage("success", "Usuario actualizado correctamente.");
+  redirectWithMessage("success", dictionary.admin.success.update);
 }
 
 export async function deleteUserAction(formData: FormData) {
   const actor = await requireAdmin();
+  const dictionary = getDictionary(getLocale());
 
   try {
     await deleteManagedUser(actor, formData);
@@ -89,5 +94,5 @@ export async function deleteUserAction(formData: FormData) {
   }
 
   revalidatePath("/admin/users");
-  redirectWithMessage("success", "Usuario eliminado correctamente.");
+  redirectWithMessage("success", dictionary.admin.success.delete);
 }
