@@ -175,7 +175,7 @@ function extractMatchingSnippets(text: string, query: string, limit = 4) {
   const ranges = mergeNearbyRanges(extractMatchRanges(sanitizedText, query));
 
   if (ranges.length === 0) {
-    return sanitizedText ? [buildSnippetFromRange(sanitizedText, 0, 0)] : [];
+    return [];
   }
 
   const snippets = ranges.map((range) =>
@@ -255,9 +255,12 @@ export async function searchDocumentsByQuery(
       const category = document.categoryId ? getCategoryNameById(document.categoryId) : "";
 
       if (normalizeForSearch(title).includes(normalizedQuery)) {
+        const titleSnippetSource =
+          summary && normalizeForSearch(summary).includes(normalizedQuery) ? summary : title;
+
         return {
           document,
-          snippets: extractMatchingSnippets(summary || title, trimmedQuery, 1),
+          snippets: extractMatchingSnippets(titleSnippetSource, trimmedQuery, 1),
           matchedIn: "title" as const,
         };
       }
