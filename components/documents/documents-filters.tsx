@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -44,12 +44,13 @@ export function DocumentsFilters({
   };
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [query, setQuery] = useState(initialQuery);
   const [status, setStatus] = useState(initialStatus);
   const [category, setCategory] = useState(initialCategory);
   const [department, setDepartment] = useState(initialDepartment);
 
-  function submitFilters() {
+  const targetUrl = useMemo(() => {
     const params = new URLSearchParams();
 
     if (query.trim()) params.set("q", query.trim());
@@ -58,7 +59,48 @@ export function DocumentsFilters({
     if (department) params.set("department", department);
 
     const search = params.toString();
-    router.push(search ? `/documents?${search}` : "/documents");
+    return search ? `${pathname}?${search}` : pathname;
+  }, [category, department, pathname, query, status]);
+
+  useEffect(() => {
+    setQuery(initialQuery);
+    setStatus(initialStatus);
+    setCategory(initialCategory);
+    setDepartment(initialDepartment);
+  }, [initialCategory, initialDepartment, initialQuery, initialStatus]);
+
+  useEffect(() => {
+    const currentParams = new URLSearchParams();
+
+    if (initialQuery.trim()) currentParams.set("q", initialQuery.trim());
+    if (initialStatus) currentParams.set("status", initialStatus);
+    if (initialCategory) currentParams.set("category", initialCategory);
+    if (initialDepartment) currentParams.set("department", initialDepartment);
+
+    const currentSearch = currentParams.toString();
+    const currentUrl = currentSearch ? `${pathname}?${currentSearch}` : pathname;
+
+    if (targetUrl === currentUrl) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      router.replace(targetUrl);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    initialCategory,
+    initialDepartment,
+    initialQuery,
+    initialStatus,
+    pathname,
+    router,
+    targetUrl,
+  ]);
+
+  function submitFilters() {
+    router.replace(targetUrl);
   }
 
   function clearFilters() {
@@ -66,7 +108,7 @@ export function DocumentsFilters({
     setStatus("");
     setCategory("");
     setDepartment("");
-    router.push("/documents");
+    router.replace(pathname);
   }
 
   return (
