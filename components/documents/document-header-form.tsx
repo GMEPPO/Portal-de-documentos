@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { TagsPicker } from "@/components/documents/tags-picker";
 import { pushToast } from "@/components/ui/toaster";
+import { departmentOptions } from "@/lib/constants";
 
 export function DocumentHeaderForm({
   documentId,
@@ -17,6 +18,7 @@ export function DocumentHeaderForm({
   initialValues: {
     title: string;
     summary: string;
+    department: string;
     tags: string[];
   };
   availableTags: string[];
@@ -24,6 +26,7 @@ export function DocumentHeaderForm({
   const router = useRouter();
   const [title, setTitle] = useState(initialValues.title);
   const [summary, setSummary] = useState(initialValues.summary);
+  const [department, setDepartment] = useState(initialValues.department);
   const [tags, setTags] = useState<string[]>(initialValues.tags);
   const [saving, setSaving] = useState(false);
 
@@ -43,7 +46,7 @@ export function DocumentHeaderForm({
       const response = await fetch(`/api/documents/${documentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), summary: summary.trim(), tags }),
+        body: JSON.stringify({ title: title.trim(), summary: summary.trim(), department, tags }),
       });
 
       if (!response.ok) {
@@ -75,6 +78,20 @@ export function DocumentHeaderForm({
           minLength={4}
           maxLength={180}
         />
+      </label>
+
+      <label className="block space-y-2">
+        <span className="text-sm text-slate-300">Departamento *</span>
+        <select
+          value={department}
+          onChange={(e) => setDepartment(e.target.value)}
+          required
+          className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-500"
+        >
+          {departmentOptions.map((d) => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
       </label>
 
       <label className="block space-y-2">

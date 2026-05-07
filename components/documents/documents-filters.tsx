@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 type Option = {
   value: string;
@@ -22,7 +23,7 @@ export function DocumentsFilters({
   initialStatus,
   initialCategory,
   initialDepartment,
-  initialTag,
+  initialTags,
   categories,
   departments,
   tags,
@@ -33,7 +34,7 @@ export function DocumentsFilters({
   initialStatus: string;
   initialCategory: string;
   initialDepartment: string;
-  initialTag: string;
+  initialTags: string[];
   categories: Option[];
   departments: Option[];
   tags: Option[];
@@ -54,7 +55,7 @@ export function DocumentsFilters({
   const [status, setStatus] = useState(initialStatus);
   const [category, setCategory] = useState(initialCategory);
   const [department, setDepartment] = useState(initialDepartment);
-  const [tag, setTag] = useState(initialTag);
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
 
   const targetUrl = useMemo(() => {
     const params = new URLSearchParams();
@@ -63,19 +64,19 @@ export function DocumentsFilters({
     if (status) params.set("status", status);
     if (category) params.set("category", category);
     if (department) params.set("department", department);
-    if (tag) params.set("tag", tag);
+    if (selectedTags.length > 0) params.set("tag", selectedTags.join(","));
 
     const search = params.toString();
     return search ? `${pathname}?${search}` : pathname;
-  }, [category, department, pathname, query, status, tag]);
+  }, [category, department, pathname, query, selectedTags, status]);
 
   useEffect(() => {
     setQuery(initialQuery);
     setStatus(initialStatus);
     setCategory(initialCategory);
     setDepartment(initialDepartment);
-    setTag(initialTag);
-  }, [initialCategory, initialDepartment, initialQuery, initialStatus, initialTag]);
+    setSelectedTags(initialTags);
+  }, [initialCategory, initialDepartment, initialQuery, initialStatus, initialTags]);
 
   useEffect(() => {
     const currentParams = new URLSearchParams();
@@ -84,7 +85,7 @@ export function DocumentsFilters({
     if (initialStatus) currentParams.set("status", initialStatus);
     if (initialCategory) currentParams.set("category", initialCategory);
     if (initialDepartment) currentParams.set("department", initialDepartment);
-    if (initialTag) currentParams.set("tag", initialTag);
+    if (initialTags.length > 0) currentParams.set("tag", initialTags.join(","));
 
     const currentSearch = currentParams.toString();
     const currentUrl = currentSearch ? `${pathname}?${currentSearch}` : pathname;
@@ -101,7 +102,7 @@ export function DocumentsFilters({
   }, [
     initialCategory,
     initialDepartment,
-    initialTag,
+    initialTags,
     initialQuery,
     initialStatus,
     pathname,
@@ -118,77 +119,101 @@ export function DocumentsFilters({
     setStatus("");
     setCategory("");
     setDepartment("");
-    setTag("");
+    setSelectedTags([]);
     router.replace(pathname);
   }
 
+  function toggleTag(value: string) {
+    setSelectedTags((prev) =>
+      prev.includes(value) ? prev.filter((t) => t !== value) : [...prev, value],
+    );
+  }
+
+  const hasActiveFilters =
+    !!(initialQuery || initialStatus || initialCategory || initialDepartment || query || status || category || department) ||
+    initialTags.length > 0 ||
+    selectedTags.length > 0;
+
   return (
-    <div className="grid gap-3 md:grid-cols-5">
-      <Input
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder={labels.queryPlaceholder}
-      />
-      <Select value={status || "__all__"} onValueChange={(value) => setStatus(value === "__all__" ? "" : value)}>
-        <SelectTrigger>
-          <SelectValue placeholder={labels.status} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">{labels.status}</SelectItem>
-          {statuses.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select value={category || "__all__"} onValueChange={(value) => setCategory(value === "__all__" ? "" : value)}>
-        <SelectTrigger>
-          <SelectValue placeholder={labels.category} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">{labels.category}</SelectItem>
-          {categories.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select
-        value={department || "__all__"}
-        onValueChange={(value) => setDepartment(value === "__all__" ? "" : value)}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder={labels.department} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">{labels.department}</SelectItem>
-          {departments.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select value={tag || "__all__"} onValueChange={(value) => setTag(value === "__all__" ? "" : value)}>
-        <SelectTrigger>
-          <SelectValue placeholder={labels.tag} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">{labels.tag}</SelectItem>
-          {tags.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <div className="md:col-span-5 flex flex-col gap-3 md:flex-row">
+    <div className="space-y-3">
+      <div className="grid gap-3 md:grid-cols-4">
+        <Input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={labels.queryPlaceholder}
+        />
+        <Select value={status || "__all__"} onValueChange={(value) => setStatus(value === "__all__" ? "" : value)}>
+          <SelectTrigger>
+            <SelectValue placeholder={labels.status} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">{labels.status}</SelectItem>
+            {statuses.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={category || "__all__"} onValueChange={(value) => setCategory(value === "__all__" ? "" : value)}>
+          <SelectTrigger>
+            <SelectValue placeholder={labels.category} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">{labels.category}</SelectItem>
+            {categories.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={department || "__all__"}
+          onValueChange={(value) => setDepartment(value === "__all__" ? "" : value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={labels.department} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">{labels.department}</SelectItem>
+            {departments.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {tags.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-slate-400">{labels.tag}</p>
+          <div className="flex flex-wrap gap-2">
+            {tags.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => toggleTag(item.value)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs transition-colors",
+                  selectedTags.includes(item.value)
+                    ? "border-amber-300/40 bg-amber-300/10 text-amber-100"
+                    : "border-slate-700 bg-slate-900/40 text-slate-300 hover:bg-slate-800/40",
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3 md:flex-row">
         <Button type="button" onClick={submitFilters}>
           {labels.search}
         </Button>
-        {(initialQuery || initialStatus || initialCategory || initialDepartment || initialTag || query || status || category || department || tag) && (
+        {hasActiveFilters && (
           <Button type="button" variant="outline" onClick={clearFilters}>
             {labels.clear}
           </Button>

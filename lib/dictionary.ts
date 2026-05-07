@@ -48,6 +48,7 @@ export function getDictionary(locale: Locale) {
         table: {
           title: "Título",
           department: "Departamento",
+          category: "Categoría",
           version: "Versión",
           status: "Estado",
           empty: "No hay documentos registrados.",
@@ -394,6 +395,7 @@ export function getDictionary(locale: Locale) {
       table: {
         title: "Título",
         department: "Departamento",
+        category: "Categoria",
         version: "Versão",
         status: "Estado",
         empty: "Sem documentos registados.",

@@ -43,6 +43,7 @@ export default async function EditDocumentPage({
           initialValues={{
             title: doc.title,
             summary: doc.summary,
+            department: doc.department,
             tags: doc.tags ?? [],
           }}
           availableTags={availableTags}
