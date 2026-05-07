@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DocumentFilePicker } from "@/components/documents/document-file-picker";
+import { TagsPicker } from "@/components/documents/tags-picker";
 import type { DocumentCategory } from "@/lib/types";
 import { getDocumentFileType } from "@/lib/document-file";
 import { pushToast } from "@/components/ui/toaster";
@@ -23,10 +24,12 @@ import { departmentOptions } from "@/lib/constants";
 export function DocumentForm({
   onSubmit,
   categories,
+  availableTags,
   labels,
 }: {
-  onSubmit: (values: DocumentCreateInput, mainFile: File | null) => Promise<void>;
+  onSubmit: (values: DocumentCreateInput, files: File[]) => Promise<void>;
   categories: DocumentCategory[];
+  availableTags: string[];
   labels: {
     unsupportedTitle: string;
     unsupportedDescription: string;
@@ -37,6 +40,8 @@ export function DocumentForm({
     departmentPlaceholder: string;
     selectDepartment: string;
     versionPlaceholder: string;
+    tagsTitle: string;
+    tagsHint: string;
     internalNotesPlaceholder: string;
     save: string;
     filePicker: {
@@ -48,7 +53,7 @@ export function DocumentForm({
     };
   };
 }) {
-  const [mainFile, setMainFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const form = useForm<DocumentCreateInput>({
     resolver: zodResolver(documentCreateSchema),
     defaultValues: {
@@ -67,18 +72,20 @@ export function DocumentForm({
     <form
       className="space-y-4"
       onSubmit={form.handleSubmit(async (values) => {
-        if (mainFile && !getDocumentFileType(mainFile.name)) {
-          pushToast({
-            id: crypto.randomUUID(),
-            title: labels.unsupportedTitle,
-            description: labels.unsupportedDescription,
-          });
-          return;
+        for (const file of files) {
+          if (!getDocumentFileType(file.name)) {
+            pushToast({
+              id: crypto.randomUUID(),
+              title: labels.unsupportedTitle,
+              description: `${labels.unsupportedDescription}: ${file.name}`,
+            });
+            return;
+          }
         }
 
-        await onSubmit(values, mainFile);
+        await onSubmit(values, files);
         form.reset();
-        setMainFile(null);
+        setFiles([]);
       })}
     >
       <Input placeholder={labels.titlePlaceholder} {...form.register("title")} />
@@ -129,9 +136,15 @@ export function DocumentForm({
         placeholder={labels.versionPlaceholder}
         {...form.register("versionNumber", { valueAsNumber: true })}
       />
+      <TagsPicker
+        availableTags={availableTags}
+        selectedTags={form.watch("tags") ?? []}
+        onChange={(next) => form.setValue("tags", next, { shouldValidate: true })}
+        labels={{ title: labels.tagsTitle, hint: labels.tagsHint }}
+      />
       <Textarea placeholder={labels.internalNotesPlaceholder} {...form.register("internalNotes")} />
       <DocumentFilePicker
-        onFileChange={setMainFile}
+        onFilesChange={setFiles}
         labels={labels.filePicker}
       />
       <Button type="submit">{labels.save}</Button>

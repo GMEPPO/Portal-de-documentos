@@ -22,8 +22,10 @@ export function DocumentsFilters({
   initialStatus,
   initialCategory,
   initialDepartment,
+  initialTag,
   categories,
   departments,
+  tags,
   statuses,
   labels,
 }: {
@@ -31,14 +33,17 @@ export function DocumentsFilters({
   initialStatus: string;
   initialCategory: string;
   initialDepartment: string;
+  initialTag: string;
   categories: Option[];
   departments: Option[];
+  tags: Option[];
   statuses: Option[];
   labels: {
     queryPlaceholder: string;
     status: string;
     category: string;
     department: string;
+    tag: string;
     search: string;
     clear: string;
   };
@@ -49,6 +54,7 @@ export function DocumentsFilters({
   const [status, setStatus] = useState(initialStatus);
   const [category, setCategory] = useState(initialCategory);
   const [department, setDepartment] = useState(initialDepartment);
+  const [tag, setTag] = useState(initialTag);
 
   const targetUrl = useMemo(() => {
     const params = new URLSearchParams();
@@ -57,17 +63,19 @@ export function DocumentsFilters({
     if (status) params.set("status", status);
     if (category) params.set("category", category);
     if (department) params.set("department", department);
+    if (tag) params.set("tag", tag);
 
     const search = params.toString();
     return search ? `${pathname}?${search}` : pathname;
-  }, [category, department, pathname, query, status]);
+  }, [category, department, pathname, query, status, tag]);
 
   useEffect(() => {
     setQuery(initialQuery);
     setStatus(initialStatus);
     setCategory(initialCategory);
     setDepartment(initialDepartment);
-  }, [initialCategory, initialDepartment, initialQuery, initialStatus]);
+    setTag(initialTag);
+  }, [initialCategory, initialDepartment, initialQuery, initialStatus, initialTag]);
 
   useEffect(() => {
     const currentParams = new URLSearchParams();
@@ -76,6 +84,7 @@ export function DocumentsFilters({
     if (initialStatus) currentParams.set("status", initialStatus);
     if (initialCategory) currentParams.set("category", initialCategory);
     if (initialDepartment) currentParams.set("department", initialDepartment);
+    if (initialTag) currentParams.set("tag", initialTag);
 
     const currentSearch = currentParams.toString();
     const currentUrl = currentSearch ? `${pathname}?${currentSearch}` : pathname;
@@ -92,6 +101,7 @@ export function DocumentsFilters({
   }, [
     initialCategory,
     initialDepartment,
+    initialTag,
     initialQuery,
     initialStatus,
     pathname,
@@ -108,11 +118,12 @@ export function DocumentsFilters({
     setStatus("");
     setCategory("");
     setDepartment("");
+    setTag("");
     router.replace(pathname);
   }
 
   return (
-    <div className="grid gap-3 md:grid-cols-4">
+    <div className="grid gap-3 md:grid-cols-5">
       <Input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
@@ -160,11 +171,24 @@ export function DocumentsFilters({
           ))}
         </SelectContent>
       </Select>
-      <div className="md:col-span-4 flex flex-col gap-3 md:flex-row">
+      <Select value={tag || "__all__"} onValueChange={(value) => setTag(value === "__all__" ? "" : value)}>
+        <SelectTrigger>
+          <SelectValue placeholder={labels.tag} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__all__">{labels.tag}</SelectItem>
+          {tags.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <div className="md:col-span-5 flex flex-col gap-3 md:flex-row">
         <Button type="button" onClick={submitFilters}>
           {labels.search}
         </Button>
-        {(initialQuery || initialStatus || initialCategory || initialDepartment || query || status || category || department) && (
+        {(initialQuery || initialStatus || initialCategory || initialDepartment || initialTag || query || status || category || department || tag) && (
           <Button type="button" variant="outline" onClick={clearFilters}>
             {labels.clear}
           </Button>

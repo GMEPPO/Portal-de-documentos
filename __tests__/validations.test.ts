@@ -1,4 +1,4 @@
-import { documentCreateSchema, documentUpdateSchema, versionSchema } from "@/lib/validations";
+import { documentCreateSchema, documentUpdateSchema, versionSchema, versionFileSchema } from "@/lib/validations";
 
 describe("Document validations", () => {
   test("creacion valida", () => {
@@ -40,10 +40,11 @@ describe("Document validations", () => {
   });
 
   test("version invalida sin tipo de fichero soportado", () => {
-    const parsed = versionSchema.safeParse({
-      changelog: "Alta inicial",
+    const parsed = versionFileSchema.safeParse({
       filePath: "doc/main/demo.exe",
-      versionNumber: 1,
+      fileType: "exe",
+      originalName: "demo.exe",
+      sortOrder: 0,
     });
     expect(parsed.success).toBe(false);
   });

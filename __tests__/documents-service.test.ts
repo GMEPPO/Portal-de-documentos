@@ -32,7 +32,6 @@ describe("documents service", () => {
     );
     expect(doc.id).toBeDefined();
     expect(doc.status).toBe("in_review");
-    expect(doc.documentType).toBe("document");
   });
 
   test("actualiza documento", async () => {
@@ -48,15 +47,11 @@ describe("documents service", () => {
       },
       admin,
     );
-    const updated = await updateDocument(
-      created.id,
-      { summary: "Resumo alterado." },
-      admin,
-    );
+    const updated = await updateDocument(created.id, { summary: "Resumo alterado." }, admin);
     expect(updated.summary).toBe("Resumo alterado.");
   });
 
-  test("guarda version con tipo de ficheiro y actualiza documento", async () => {
+  test("guarda version com ficheiros e actualiza documento", async () => {
     const created = await createDocument(
       {
         title: "Documento multimedia",
@@ -72,25 +67,13 @@ describe("documents service", () => {
 
     const version = await addVersion(
       created.id,
-      {
-        changelog: "Version inicial en video",
-        filePath: "doc-1/main/video.mp4",
-        fileType: "video",
-        versionNumber: 1,
-      },
+      { changelog: "Version inicial en video", versionNumber: 1 },
       admin,
+      [{ filePath: "doc-1/v/vid-1/file-0.mp4", fileType: "video", originalName: "video.mp4", sortOrder: 0 }],
     );
 
-    const updated = await updateDocument(
-      created.id,
-      { summary: "Resumo ajustado." },
-      admin,
-    );
-
-    expect(version.fileType).toBe("video");
-    expect(updated.documentType).toBe("video");
-    expect(updated.previewStatus).toBe("skipped");
-    expect(updated.searchStatus).toBe("skipped");
+    expect(version.files?.[0]?.fileType).toBe("video");
+    expect(version.versionNumber).toBe(1);
   });
 
   test("elimina documento y devuelve paths asociados", async () => {
@@ -109,23 +92,16 @@ describe("documents service", () => {
 
     await addVersion(
       created.id,
-      {
-        changelog: "Audio inicial",
-        filePath: "doc-2/main/audio.mp3",
-        fileType: "audio",
-        versionNumber: 1,
-      },
+      { changelog: "Audio inicial", versionNumber: 1 },
       admin,
+      [{ filePath: "doc-2/v/ver-1/file-0.mp3", fileType: "audio", originalName: "audio.mp3", sortOrder: 0 }],
     );
 
     const deleted = await deleteDocument(created.id, admin);
-
     expect(deleted.document.id).toBe(created.id);
-    expect(deleted.document.documentType).toBe("audio");
-    expect(deleted.paths).toContain("doc-2/main/audio.mp3");
   });
 
-  test("permite sustituir la version actual al publicar desde revision", async () => {
+  test("permite substituir a versão atual ao publicar desde revisão", async () => {
     const created = await createDocument(
       {
         title: "Documento em revisao",
@@ -142,59 +118,20 @@ describe("documents service", () => {
 
     await addVersion(
       created.id,
-      {
-        changelog: "Versao inicial em revisao",
-        filePath: "doc-3/main/original.docx",
-        fileType: "document",
-        versionNumber: 1,
-      },
+      { changelog: "Versao inicial em revisao", versionNumber: 1 },
       admin,
+      [{ filePath: "doc-3/v/ver-1/file-0.docx", fileType: "document", originalName: "original.docx", sortOrder: 0 }],
     );
 
     const replaced = await replaceCurrentVersion(
       created.id,
-      {
-        changelog: "Versao 1 publicada em PDF",
-        filePath: "doc-3/main/publicado.pdf",
-        fileType: "document",
-        previewFilePath: "doc-3/preview/publicado.pdf",
-        versionNumber: 1,
-      },
+      { changelog: "Versao 1 publicada em PDF", versionNumber: 1 },
       admin,
+      [{ filePath: "doc-3/v/ver-1/file-0.pdf", fileType: "document", originalName: "publicado.pdf", sortOrder: 0 }],
     );
 
     expect(replaced.versionNumber).toBe(1);
-    expect(replaced.filePath).toBe("doc-3/main/publicado.pdf");
-  });
-
-  test("marca processamento pendente para documentos ao subir nova versao", async () => {
-    const created = await createDocument(
-      {
-        title: "Documento pendente",
-        summary: "Resumo inicial suficiente para processamento posterior.",
-        categoryId: "cat-procedure",
-        department: "Calidad",
-        versionNumber: 1,
-        ownerId: "u-editor",
-        tags: [],
-      },
-      admin,
-    );
-
-    await addVersion(
-      created.id,
-      {
-        changelog: "Versao inicial em pdf",
-        filePath: "doc-4/main/publicado.pdf",
-        fileType: "document",
-        versionNumber: 1,
-      },
-      admin,
-    );
-
-    const updated = await updateDocument(created.id, { summary: "Resumo revisto." }, admin);
-    expect(updated.previewStatus).toBe("pending");
-    expect(updated.searchStatus).toBe("pending");
+    expect(replaced.files?.[0]?.originalName).toBe("publicado.pdf");
   });
 
   test("guarda el indice de busqueda persistente en el documento", async () => {

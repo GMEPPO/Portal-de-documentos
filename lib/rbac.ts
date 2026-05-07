@@ -31,6 +31,14 @@ export function canManageUsers(role: UserRole) {
   return role === "admin";
 }
 
+export function canManageCommunications(role: UserRole) {
+  return role === "admin" || role === "manager";
+}
+
+export function canManageEvents(role: UserRole) {
+  return role === "admin" || role === "manager";
+}
+
 const transitionMap: Record<DocumentStatus, DocumentStatus[]> = {
   in_review: ["published"],
   updating: ["published"],

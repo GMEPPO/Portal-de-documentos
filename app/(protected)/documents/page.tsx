@@ -14,6 +14,15 @@ import { listDocuments } from "@/lib/documents-service";
 import { canAccessDocumentStatus } from "@/lib/rbac";
 import type { DocumentStatus } from "@/lib/types";
 import type { ReactNode } from "react";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+
+async function loadAvailableTags() {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("document_tags").select("name").order("name", { ascending: true });
+  if (error) return [];
+  return (data ?? []).map((r: any) => r.name).filter(Boolean);
+}
 
 function normalizeValue(value: string) {
   return value.trim().toLowerCase();
@@ -108,6 +117,7 @@ export default async function DocumentsPage({
     status?: string;
     category?: string;
     department?: string;
+    tag?: string;
   };
 }) {
   const user = await requireAuth();
@@ -118,6 +128,8 @@ export default async function DocumentsPage({
   const selectedStatus = searchParams?.status?.trim() ?? "";
   const selectedCategory = searchParams?.category?.trim() ?? "";
   const selectedDepartment = searchParams?.department?.trim() ?? "";
+  const selectedTag = searchParams?.tag?.trim() ?? "";
+  const availableTags = await loadAvailableTags();
 
   const documents = (await listDocuments()).filter((doc) =>
     canAccessDocumentStatus(user.role, doc.status),
@@ -128,8 +140,10 @@ export default async function DocumentsPage({
     const departmentMatches =
       !selectedDepartment ||
       normalizeValue(doc.department) === normalizeValue(selectedDepartment);
+    const tagMatches =
+      !selectedTag || (doc.tags ?? []).some((t) => normalizeValue(t) === normalizeValue(selectedTag));
 
-    return statusMatches && categoryMatches && departmentMatches;
+    return statusMatches && categoryMatches && departmentMatches && tagMatches;
   });
 
   const searchResults = query
@@ -141,8 +155,11 @@ export default async function DocumentsPage({
         const departmentMatches =
           !selectedDepartment ||
           normalizeValue(result.document.department) === normalizeValue(selectedDepartment);
+        const tagMatches =
+          !selectedTag ||
+          (result.document.tags ?? []).some((t) => normalizeValue(t) === normalizeValue(selectedTag));
 
-        return statusMatches && categoryMatches && departmentMatches;
+        return statusMatches && categoryMatches && departmentMatches && tagMatches;
       })
     : [];
 
@@ -173,6 +190,7 @@ export default async function DocumentsPage({
             initialStatus={selectedStatus}
             initialCategory={selectedCategory}
             initialDepartment={selectedDepartment}
+            initialTag={selectedTag}
             statuses={statusOptions.map((status) => ({
               value: status,
               label: statusLabels[status],
@@ -185,6 +203,7 @@ export default async function DocumentsPage({
               value: department,
               label: department,
             }))}
+            tags={availableTags.map((t) => ({ value: t, label: t }))}
             labels={dictionary.documents.filters}
           />
         </CardContent>

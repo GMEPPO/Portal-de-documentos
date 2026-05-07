@@ -52,7 +52,7 @@ function getErrorMessage(error: unknown) {
 
 function redirectWithMessage(status: "success" | "error", message: string) {
   const params = new URLSearchParams({ status, message });
-  redirect(`/admin/users?${params.toString()}`);
+  redirect(`/admin?${params.toString()}`);
 }
 
 export async function createUserAction(formData: FormData) {
@@ -65,7 +65,7 @@ export async function createUserAction(formData: FormData) {
     redirectWithMessage("error", getErrorMessage(error));
   }
 
-  revalidatePath("/admin/users");
+  revalidatePath("/admin");
   redirectWithMessage("success", dictionary.admin.success.create);
 }
 
@@ -79,7 +79,7 @@ export async function updateUserAction(formData: FormData) {
     redirectWithMessage("error", getErrorMessage(error));
   }
 
-  revalidatePath("/admin/users");
+  revalidatePath("/admin");
   redirectWithMessage("success", dictionary.admin.success.update);
 }
 
@@ -93,6 +93,6 @@ export async function deleteUserAction(formData: FormData) {
     redirectWithMessage("error", getErrorMessage(error));
   }
 
-  revalidatePath("/admin/users");
+  revalidatePath("/admin");
   redirectWithMessage("success", dictionary.admin.success.delete);
 }

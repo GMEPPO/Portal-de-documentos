@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServiceServerClient } from "@/lib/supabase-service-server";
 
 const BUCKET = "documents";
 
@@ -47,20 +48,31 @@ export async function deleteDocumentFiles(paths: string[]) {
 }
 
 export async function getDocumentFileSignedUrl(path: string, expiresIn = 3600) {
-  const supabase = createSupabaseServerClient();
-  if (!supabase) {
-    return null;
+  if (!path) return null;
+
+  // Try session client first; fall back to service role if it fails.
+  // Service role bypasses any transient session issues and always has
+  // access to bucket objects.
+  const clients = [
+    createSupabaseServerClient(),
+    createSupabaseServiceServerClient(),
+  ].filter(Boolean);
+
+  for (const supabase of clients) {
+    const { data, error } = await supabase!.storage
+      .from(BUCKET)
+      .createSignedUrl(path, expiresIn);
+
+    if (!error && data?.signedUrl) {
+      return data.signedUrl;
+    }
+
+    if (error) {
+      console.error("[storage] createSignedUrl error", { path, message: error.message });
+    }
   }
 
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(path, expiresIn);
-
-  if (error) {
-    throw error;
-  }
-
-  return data?.signedUrl ?? null;
+  return null;
 }
 
 export async function downloadDocumentFile(path: string) {

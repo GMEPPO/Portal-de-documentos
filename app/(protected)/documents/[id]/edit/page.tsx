@@ -1,17 +1,23 @@
 import { notFound } from "next/navigation";
-import { DocumentVersionForm } from "@/components/documents/document-version-form";
+import { DocumentHeaderForm } from "@/components/documents/document-header-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuth } from "@/lib/auth";
-import { getDocumentFileType, isPdfFilename } from "@/lib/document-file";
 import { getDocumentById } from "@/lib/documents-service";
 import { canEditDocument } from "@/lib/rbac";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+
+async function loadAvailableTags() {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("document_tags").select("name").order("name", { ascending: true });
+  if (error) return [];
+  return (data ?? []).map((r: any) => r.name as string).filter(Boolean);
+}
 
 export default async function EditDocumentPage({
   params,
-  searchParams,
 }: {
   params: { id: string };
-  searchParams?: { mode?: string };
 }) {
   const user = await requireAuth();
   let doc = null;
@@ -22,49 +28,24 @@ export default async function EditDocumentPage({
   }
   if (!doc) notFound();
   if (!canEditDocument(user.role)) notFound();
-  const mode = searchParams?.mode === "publish" ? "publish" : "update";
-  const currentFilename = doc.mainFilePath?.split("/").pop() ?? null;
-  const currentFileType = currentFilename ? getDocumentFileType(currentFilename) : null;
-  const hasReusableReviewPdf =
-    mode === "publish" &&
-    doc.status === "in_review" &&
-    Boolean(currentFilename && isPdfFilename(currentFilename));
-  const hasReusableReviewMedia =
-    mode === "publish" &&
-    doc.status === "in_review" &&
-    Boolean(currentFilename && (currentFileType === "video" || currentFileType === "audio"));
-  const hasReusableReviewFile = hasReusableReviewPdf || hasReusableReviewMedia;
+
+  const availableTags = await loadAvailableTags();
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{mode === "publish" ? "Publicar documento" : "Atualizar documento"}</CardTitle>
-        <CardDescription>
-          {mode === "publish"
-            ? hasReusableReviewFile
-              ? "Podes publicar usando o ficheiro atual da revisao ou carregar um novo para substituir o existente."
-              : "Sube um PDF, Word, MP4 ou MP3 final para publicar a versao atual."
-            : "Carrega um novo ficheiro para publicar diretamente uma nova versao. Enquanto nao guardares, o documento atual continua publicado."}
-        </CardDescription>
+        <CardTitle>Editar documento</CardTitle>
+        <CardDescription>Edita o nome, resumo e tags do documento. Para gerir ficheiros e versões, usa os controlos na página do documento.</CardDescription>
       </CardHeader>
       <CardContent>
-        <DocumentVersionForm
+        <DocumentHeaderForm
           documentId={doc.id}
-          mode={mode}
           initialValues={{
             title: doc.title,
             summary: doc.summary,
-            department: doc.department,
-            internalNotes: doc.internalNotes,
-            nextVersionNumber:
-              mode === "publish" && doc.status === "in_review"
-                ? doc.currentVersion
-                : doc.currentVersion + 1,
-            currentStatus: doc.status,
-            currentFileUrl: null,
-            currentFilename,
-            hasReusableReviewFile,
+            tags: doc.tags ?? [],
           }}
+          availableTags={availableTags}
         />
       </CardContent>
     </Card>
