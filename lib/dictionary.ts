@@ -5,7 +5,7 @@ export function getDictionary(locale: Locale) {
     return {
       shell: {
         appTitle: "DOCFLOW Internal",
-        nav: { dashboard: "Dashboard", documents: "Documentos", communications: "Comunicaciones", admin: "Administración" },
+        nav: { dashboard: "Dashboard", documents: "Documentos", communications: "Comunicaciones", admin: "Administración", tiraDuvidas: "Tira dúvidas" },
         signOut: "Salir",
         languageLabel: "Idioma",
       },
@@ -352,7 +352,7 @@ export function getDictionary(locale: Locale) {
   return {
     shell: {
       appTitle: "DOCFLOW Internal",
-      nav: { dashboard: "Dashboard", documents: "Documentos", communications: "Comunicações", admin: "Administração" },
+      nav: { dashboard: "Dashboard", documents: "Documentos", communications: "Comunicações", admin: "Administração", tiraDuvidas: "Tira dúvidas" },
       signOut: "Sair",
       languageLabel: "Idioma",
     },

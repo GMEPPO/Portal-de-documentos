@@ -98,46 +98,55 @@ export default async function AdminPage({
       {/* Users tab */}
       {activeTab === "users" && (
         <>
+          {/* ── Criar utilizador ── */}
           <Card>
             <CardHeader>
               <CardTitle>{dictionary.admin.createTitle}</CardTitle>
               <CardDescription>{dictionary.admin.createDescription}</CardDescription>
             </CardHeader>
             <CardContent>
-              <form action={createUserAction} className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <label className="space-y-2">
-                  <span className="text-sm text-slate-300">{dictionary.admin.labels.name}</span>
-                  <Input name="name" placeholder={dictionary.admin.placeholders.name} required disabled={Boolean(loadError)} />
+              <form action={createUserAction} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto]">
+                <label className="space-y-1.5">
+                  <span className="text-xs text-slate-400">{dictionary.admin.labels.name}</span>
+                  <Input name="name" placeholder={dictionary.admin.placeholders.name} required disabled={Boolean(loadError)} className="h-9" />
                 </label>
-                <label className="space-y-2">
-                  <span className="text-sm text-slate-300">{dictionary.admin.labels.email}</span>
-                  <Input name="email" type="email" placeholder={dictionary.admin.placeholders.email} required disabled={Boolean(loadError)} />
+                <label className="space-y-1.5">
+                  <span className="text-xs text-slate-400">{dictionary.admin.labels.email}</span>
+                  <Input name="email" type="email" placeholder={dictionary.admin.placeholders.email} required disabled={Boolean(loadError)} className="h-9" />
                 </label>
-                <label className="space-y-2">
-                  <span className="text-sm text-slate-300">{dictionary.admin.labels.password}</span>
-                  <Input name="password" type="password" minLength={8} required disabled={Boolean(loadError)} />
+                <label className="space-y-1.5">
+                  <span className="text-xs text-slate-400">{dictionary.admin.labels.password}</span>
+                  <Input name="password" type="password" minLength={8} required disabled={Boolean(loadError)} className="h-9" />
                 </label>
-                <label className="space-y-2">
-                  <span className="text-sm text-slate-300">{dictionary.admin.labels.department}</span>
-                  <Input name="department" placeholder={dictionary.admin.placeholders.department} required disabled={Boolean(loadError)} />
+                <label className="space-y-1.5">
+                  <span className="text-xs text-slate-400">{dictionary.admin.labels.department}</span>
+                  <select
+                    name="department"
+                    required
+                    disabled={Boolean(loadError)}
+                    className="flex h-9 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <option value="">{dictionary.admin.placeholders.department}</option>
+                    {departmentOptions.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
                 </label>
-                <label className="space-y-2">
-                  <span className="text-sm text-slate-300">{dictionary.admin.labels.role}</span>
+                <label className="space-y-1.5">
+                  <span className="text-xs text-slate-400">{dictionary.admin.labels.role}</span>
                   <select
                     name="role"
                     required
                     defaultValue="viewer"
                     disabled={Boolean(loadError)}
-                    className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="flex h-9 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     {adminRoleOptions.map((role) => (
-                      <option key={role} value={role}>
-                        {role.toUpperCase()}
-                      </option>
+                      <option key={role} value={role}>{role.toUpperCase()}</option>
                     ))}
                   </select>
                 </label>
-                <div className="md:col-span-2 xl:col-span-5">
+                <div className="flex items-end sm:col-span-2 xl:col-span-1">
                   <AdminFormSubmitButton
                     label={dictionary.admin.create}
                     pendingLabel={dictionary.admin.creating}
@@ -148,96 +157,122 @@ export default async function AdminPage({
             </CardContent>
           </Card>
 
+          {/* ── Lista de utilizadores ── */}
           <Card>
             <CardHeader>
               <CardTitle>{dictionary.admin.listTitle}</CardTitle>
               <CardDescription>{dictionary.admin.listDescription}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="p-0">
               {!loadError && users.length === 0 ? (
-                <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-4 text-sm text-slate-300">
-                  {dictionary.admin.empty}
-                </div>
+                <p className="px-6 py-4 text-sm text-slate-400">{dictionary.admin.empty}</p>
               ) : null}
 
-              {users.map((user) => {
-                const isCurrentAdmin = user.id === currentUser.id;
-                return (
-                  <div key={user.id} className="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
-                    <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <p className="font-medium text-slate-100">{user.email || user.name}</p>
-                        <p className="text-sm text-slate-400">
-                          Criado: {formatDate(user.createdAt)} · Último acesso: {formatDate(user.lastSignInAt)}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2 text-xs uppercase tracking-wide">
-                        <span className="rounded-full bg-slate-800 px-3 py-1 text-slate-300">
-                          {user.hasAuthAccount ? dictionary.admin.authOk : dictionary.admin.noAuth}
-                        </span>
-                        <span className="rounded-full bg-slate-800 px-3 py-1 text-slate-300">
-                          {user.hasProfile ? dictionary.admin.profileOk : dictionary.admin.profilePending}
-                        </span>
-                        {isCurrentAdmin ? (
-                          <span className="rounded-full bg-amber-400/20 px-3 py-1 text-amber-300">
-                            {dictionary.admin.yourAccount}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <form action={updateUserAction} className="grid gap-4 lg:grid-cols-4">
-                      <input type="hidden" name="userId" value={user.id} />
-                      <input type="hidden" name="email" value={user.email} />
-                      {isCurrentAdmin ? <input type="hidden" name="role" value="admin" /> : null}
-                      <label className="space-y-2">
-                        <span className="text-sm text-slate-300">{dictionary.admin.labels.name}</span>
-                        <Input name="name" defaultValue={user.name} required />
-                      </label>
-                      <label className="space-y-2">
-                        <span className="text-sm text-slate-300">{dictionary.admin.labels.email}</span>
-                        <Input value={user.email} disabled readOnly />
-                      </label>
-                      <label className="space-y-2">
-                        <span className="text-sm text-slate-300">{dictionary.admin.labels.department}</span>
-                        <Input name="department" defaultValue={user.department} required />
-                      </label>
-                      <label className="space-y-2">
-                        <span className="text-sm text-slate-300">{dictionary.admin.labels.role}</span>
-                        <select
-                          name={isCurrentAdmin ? undefined : "role"}
-                          defaultValue={user.role}
-                          disabled={isCurrentAdmin}
-                          className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-sm text-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {adminRoleOptions.map((role) => (
-                            <option key={role} value={role}>
-                              {role.toUpperCase()}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <div className="lg:col-span-4 flex flex-wrap items-center gap-3">
-                        <AdminFormSubmitButton label={dictionary.admin.save} pendingLabel={dictionary.admin.saving} />
-                        <span className="text-sm text-slate-400">
-                          {dictionary.admin.userId}: {user.id}
-                        </span>
-                      </div>
-                    </form>
-
-                    <form action={deleteUserAction} className="mt-3">
-                      <input type="hidden" name="userId" value={user.id} />
-                      <AdminFormSubmitButton
-                        label={dictionary.admin.delete}
-                        pendingLabel={dictionary.admin.deleting}
-                        variant="outline"
-                        className="border-red-500/40 text-red-200 hover:bg-red-500/10"
-                        disabled={isCurrentAdmin}
-                      />
-                    </form>
+              {users.length > 0 && (
+                <div className="overflow-x-auto">
+                  {/* Cabeçalho */}
+                  <div className="flex items-center gap-3 border-b border-slate-700 px-4 py-2 text-xs uppercase tracking-wide text-slate-400">
+                    <span className="w-8 shrink-0" />
+                    <span className="w-44 shrink-0">{dictionary.admin.labels.name}</span>
+                    <span className="w-36 shrink-0">{dictionary.admin.labels.department}</span>
+                    <span className="w-24 shrink-0">{dictionary.admin.labels.role}</span>
+                    <span className="flex-1">Estado</span>
+                    <span className="w-40 shrink-0 text-right">Ações</span>
                   </div>
-                );
-              })}
+
+                  {users.map((user) => {
+                    const isCurrentAdmin = user.id === currentUser.id;
+                    const initials = (user.name || user.email).slice(0, 2).toUpperCase();
+
+                    return (
+                      <div
+                        key={user.id}
+                        className="flex items-center gap-3 border-b border-slate-700/50 px-4 py-2 last:border-0 hover:bg-slate-800/30 transition-colors"
+                      >
+                        {/* Forma de update — flex row, ocupa tudo menos o botão eliminar */}
+                        <form action={updateUserAction} className="flex flex-1 items-center gap-3 min-w-0">
+                          <input type="hidden" name="userId" value={user.id} />
+                          <input type="hidden" name="email" value={user.email} />
+                          {isCurrentAdmin && <input type="hidden" name="role" value="admin" />}
+
+                          {/* Avatar */}
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-slate-100">
+                            {initials}
+                          </div>
+
+                          {/* Nome (editável) + Email (só leitura) */}
+                          <div className="w-44 shrink-0 min-w-0">
+                            <Input
+                              name="name"
+                              defaultValue={user.name}
+                              required
+                              className="h-7 border-transparent bg-transparent px-1 text-sm font-medium text-slate-100 hover:border-slate-600 focus:border-slate-500 focus:bg-slate-900 focus:px-2"
+                              title={dictionary.admin.labels.name}
+                            />
+                            <p className="truncate px-1 text-xs text-slate-400 leading-tight">{user.email}</p>
+                          </div>
+
+                          {/* Departamento */}
+                          <select
+                            name="department"
+                            defaultValue={user.department}
+                            required
+                            className="h-8 w-36 shrink-0 rounded-md border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                          >
+                            <option value="">—</option>
+                            {departmentOptions.map((d) => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </select>
+
+                          {/* Papel */}
+                          <select
+                            name={isCurrentAdmin ? undefined : "role"}
+                            defaultValue={user.role}
+                            disabled={isCurrentAdmin}
+                            className="h-8 w-24 shrink-0 rounded-md border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {adminRoleOptions.map((role) => (
+                              <option key={role} value={role}>{role}</option>
+                            ))}
+                          </select>
+
+                          {/* Badges de estado */}
+                          <div className="flex flex-1 flex-wrap gap-1 text-xs">
+                            <span className={`rounded px-1.5 py-0.5 font-mono ${user.hasAuthAccount ? "bg-emerald-900/40 text-emerald-300" : "bg-red-900/40 text-red-300"}`}>
+                              {user.hasAuthAccount ? "AUTH ✓" : "AUTH ✗"}
+                            </span>
+                            <span className={`rounded px-1.5 py-0.5 font-mono ${user.hasProfile ? "bg-emerald-900/40 text-emerald-300" : "bg-amber-900/40 text-amber-300"}`}>
+                              {user.hasProfile ? "PERFIL ✓" : "PERFIL ✗"}
+                            </span>
+                            {isCurrentAdmin && (
+                              <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-amber-300">tu</span>
+                            )}
+                          </div>
+
+                          {/* Guardar */}
+                          <AdminFormSubmitButton
+                            label={dictionary.admin.save}
+                            pendingLabel={dictionary.admin.saving}
+                          />
+                        </form>
+
+                        {/* Eliminar — form separado (não pode ser aninhado) */}
+                        <form action={deleteUserAction}>
+                          <input type="hidden" name="userId" value={user.id} />
+                          <AdminFormSubmitButton
+                            label={dictionary.admin.delete}
+                            pendingLabel={dictionary.admin.deleting}
+                            variant="outline"
+                            className="border-red-500/30 text-red-300 hover:bg-red-500/10 hover:text-red-200"
+                            disabled={isCurrentAdmin}
+                          />
+                        </form>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </>

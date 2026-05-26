@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, Home, Mail, Shield } from "lucide-react";
+import { FileText, Home, Mail, MessageCircleQuestion, Shield } from "lucide-react";
 import type { AppUser, Locale } from "@/lib/types";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { canManageCommunications, canManageUsers } from "@/lib/rbac";
@@ -10,6 +10,7 @@ const navItems = [
   { href: "/dashboard", labelKey: "dashboard", icon: Home },
   { href: "/documents", labelKey: "documents", icon: FileText },
   { href: "/communications", labelKey: "communications", icon: Mail },
+  { href: "/tira-duvidas", labelKey: "tiraDuvidas", icon: MessageCircleQuestion },
   { href: "/admin", labelKey: "admin", icon: Shield },
 ] as const;
 
@@ -27,6 +28,7 @@ export function AppShell({
       dashboard: string;
       documents: string;
       communications: string;
+      tiraDuvidas: string;
       admin: string;
     };
     signOut: string;
