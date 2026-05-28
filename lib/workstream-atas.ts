@@ -33,6 +33,7 @@ export type WorkstreamAtaRecord = {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+  documentId: string | null;
 };
 
 export type AtaInput = {
@@ -66,6 +67,7 @@ function mapRow(row: any): WorkstreamAtaRecord {
     createdBy: row.created_by ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    documentId: row.document_id ?? null,
   };
 }
 

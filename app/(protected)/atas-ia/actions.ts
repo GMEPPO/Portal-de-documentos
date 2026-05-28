@@ -10,6 +10,7 @@ import {
   type WorkstreamId,
   type Contramedida,
 } from "@/lib/workstream-atas";
+import { syncAtaToDocument } from "@/lib/ata-document-sync";
 
 // ---------------------------------------------------------------------------
 // Tipo resumido para o seletor de ata de referência
@@ -189,7 +190,11 @@ export async function saveAtaAction(
       actor,
     );
 
+    // Sincronizar com o sistema de documentos (não bloqueia em caso de erro)
+    await syncAtaToDocument(ata, actor);
+
     revalidatePath("/atas-ia");
+    revalidatePath("/documents");
 
     return { ok: true, id: ata.id };
   } catch (error) {

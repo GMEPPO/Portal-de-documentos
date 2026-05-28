@@ -345,6 +345,8 @@ const WS_LABEL: Record<string, string> = {
   ws2: "Workstream 2",
   ws3: "Workstream 3",
   ws4: "Workstream 4",
+  steering: "Steering",
+  ps: "Progresso Semanal",
 };
 
 // ---------------------------------------------------------------------------

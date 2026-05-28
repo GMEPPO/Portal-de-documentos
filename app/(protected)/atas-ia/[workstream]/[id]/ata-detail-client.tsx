@@ -7,6 +7,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Edit3,
+  ExternalLink,
   FileDown,
   Loader2,
   Plus,
@@ -125,6 +126,15 @@ export function AtaDetailClient({
               <FileDown className="h-3.5 w-3.5" />
               Download PDF
             </a>
+            {ata.documentId && (
+              <Link
+                href={`/documents/${ata.documentId}`}
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-600 bg-transparent px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Ver documento
+              </Link>
+            )}
           </>
         )}
       </div>

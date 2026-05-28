@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
-import { updateAta, type WorkstreamId, type Contramedida } from "@/lib/workstream-atas";
+import { updateAta, getAta, type WorkstreamId, type Contramedida } from "@/lib/workstream-atas";
+import { syncAtaToDocument, addAtaDocumentVersion } from "@/lib/ata-document-sync";
 
 export type UpdateAtaResult = { ok: true } | { ok: false; error: string };
 
@@ -15,10 +16,10 @@ export async function updateAtaAction(
   proximosPassos: string,
   participantes: string,
 ): Promise<UpdateAtaResult> {
-  await requireAuth();
+  const actor = await requireAuth();
 
   try {
-    await updateAta(id, {
+    const updated = await updateAta(id, {
       situacaoAtual,
       problemasIdentificados,
       contramedidas,
@@ -26,8 +27,18 @@ export async function updateAtaAction(
       participantes,
     });
 
+    // Sincronizar com o sistema de documentos
+    if (updated.documentId) {
+      // Ata já tem documento associado → adicionar nova versão
+      await addAtaDocumentVersion(updated, updated.documentId, actor);
+    } else {
+      // Ata ainda não tem documento (criada antes desta funcionalidade) → criar agora
+      await syncAtaToDocument(updated, actor);
+    }
+
     revalidatePath(`/atas-ia/${workstream}/${id}`);
     revalidatePath(`/atas-ia/${workstream}`);
+    revalidatePath("/documents");
 
     return { ok: true };
   } catch (error) {
