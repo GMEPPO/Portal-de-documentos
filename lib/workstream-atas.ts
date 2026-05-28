@@ -1,15 +1,17 @@
 import { createSupabaseServiceServerClient } from "@/lib/supabase-service-server";
 import type { AppUser } from "@/lib/types";
 
-export type WorkstreamId = "ws1" | "ws2" | "ws3" | "ws4";
+export type WorkstreamId = "ws1" | "ws2" | "ws3" | "ws4" | "steering" | "ps";
 
-export const VALID_WORKSTREAMS: WorkstreamId[] = ["ws1", "ws2", "ws3", "ws4"];
+export const VALID_WORKSTREAMS: WorkstreamId[] = ["ws1", "ws2", "ws3", "ws4", "steering", "ps"];
 
 export const WORKSTREAM_LABELS: Record<WorkstreamId, string> = {
   ws1: "Workstream 1",
   ws2: "Workstream 2",
   ws3: "Workstream 3",
   ws4: "Workstream 4",
+  steering: "Steering",
+  ps: "Progresso Semanal",
 };
 
 export type Contramedida = {
