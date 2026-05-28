@@ -7,6 +7,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Edit3,
+  FileDown,
   Loader2,
   Plus,
   RotateCcw,
@@ -106,15 +107,25 @@ export function AtaDetailClient({
         </Button>
         <h1 className="text-xl font-semibold text-slate-100 capitalize">{dateFormatted}</h1>
         {!isEditing && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { setIsEditing(true); setSaved(false); }}
-            className="border-slate-600"
-          >
-            <Edit3 className="mr-1.5 h-3.5 w-3.5" />
-            Editar
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setIsEditing(true); setSaved(false); }}
+              className="border-slate-600"
+            >
+              <Edit3 className="mr-1.5 h-3.5 w-3.5" />
+              Editar
+            </Button>
+            <a
+              href={`/api/atas-ia/${ata.id}/pdf`}
+              download
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-600 bg-transparent px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              Download PDF
+            </a>
+          </>
         )}
       </div>
 

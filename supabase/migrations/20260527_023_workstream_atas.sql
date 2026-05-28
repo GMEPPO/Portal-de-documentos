@@ -35,6 +35,11 @@ create policy "workstream_atas_all_service_role"
   for all to service_role
   using (true);
 
+-- Permissões de acesso
+grant select              on public.workstream_atas to authenticated;
+grant all                 on public.workstream_atas to service_role;
+grant all                 on public.workstream_atas to postgres;
+
 -- Trigger para atualizar updated_at automaticamente
 create trigger workstream_atas_updated_at
   before update on public.workstream_atas
