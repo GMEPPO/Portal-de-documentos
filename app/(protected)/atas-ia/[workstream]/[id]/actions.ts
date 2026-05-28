@@ -19,6 +19,11 @@ export async function updateAtaAction(
   const actor = await requireAuth();
 
   try {
+    // Ler document_id ANTES do update para garantir valor correcto
+    // (não depender do retorno do UPDATE que pode ter variações de timing)
+    const existing = await getAta(id);
+    const existingDocumentId = existing?.documentId ?? null;
+
     const updated = await updateAta(id, {
       situacaoAtual,
       problemasIdentificados,
@@ -28,9 +33,9 @@ export async function updateAtaAction(
     });
 
     // Sincronizar com o sistema de documentos
-    if (updated.documentId) {
+    if (existingDocumentId) {
       // Ata já tem documento associado → adicionar nova versão
-      await addAtaDocumentVersion(updated, updated.documentId, actor);
+      await addAtaDocumentVersion(updated, existingDocumentId, actor);
     } else {
       // Ata ainda não tem documento (criada antes desta funcionalidade) → criar agora
       await syncAtaToDocument(updated, actor);

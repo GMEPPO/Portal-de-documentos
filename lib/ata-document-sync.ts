@@ -47,6 +47,23 @@ export async function syncAtaToDocument(
   if (!supabase) return null;
 
   try {
+    // Guard: se a ata já tiver um documento associado, adicionar versão em vez de criar novo
+    if (ata.documentId) {
+      return await addAtaDocumentVersion(ata, ata.documentId, actor)
+        .then(() => ata.documentId);
+    }
+
+    // Guard extra: verificar na DB se entretanto foi criado um documento para esta ata
+    const { data: existingAta } = await supabase
+      .from("workstream_atas")
+      .select("document_id")
+      .eq("id", ata.id)
+      .maybeSingle();
+    if (existingAta?.document_id) {
+      await addAtaDocumentVersion(ata, existingAta.document_id, actor);
+      return existingAta.document_id as string;
+    }
+
     const wsLabel = WORKSTREAM_LABELS[ata.workstream] ?? ata.workstream.toUpperCase();
     const datePT = formatDatePT(ata.meetingDate);
     const title = `${wsLabel} — ${datePT}`;
