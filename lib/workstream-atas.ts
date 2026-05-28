@@ -166,6 +166,19 @@ export async function listAllAtas(limit = 100): Promise<WorkstreamAtaRecord[]> {
   return (data ?? []).map(mapRow);
 }
 
+export async function getAtaByDocumentId(
+  documentId: string,
+): Promise<WorkstreamAtaRecord | null> {
+  const supabase = getServiceClient();
+  const { data, error } = await supabase
+    .from("workstream_atas")
+    .select("*")
+    .eq("document_id", documentId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? mapRow(data) : null;
+}
+
 export async function getLastAtasForAllWorkstreams(): Promise<
   Record<WorkstreamId, WorkstreamAtaRecord | null>
 > {

@@ -19,7 +19,10 @@ import { canAccessDocumentStatus, canEditDocument, canManageCommunications } fro
 import { getDocumentFileSignedUrl } from "@/lib/storage-service";
 import { listCommunicationsForDocument } from "@/lib/communications";
 import { listEventsForDocument } from "@/lib/events";
+import { getAtaByDocumentId, WORKSTREAM_LABELS } from "@/lib/workstream-atas";
 import type { DocumentAuditRecord } from "@/lib/types";
+
+const ATA_CATEGORY_ID = "33333333-3333-3333-3333-333333333333";
 
 function fileTypeSortWeight(originalName: string, fileType: string): number {
   const n = originalName.toLowerCase();
@@ -79,6 +82,12 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
 
   const canManageDocument = canEditDocument(user.role);
   const canComm = canManageCommunications(user.role);
+
+  // Se for uma ata de reunião, buscar a ata de origem para o botão de edição
+  const linkedAta =
+    doc.categoryId === ATA_CATEGORY_ID
+      ? await getAtaByDocumentId(doc.id).catch(() => null)
+      : null;
 
   let docCommunications: Awaited<ReturnType<typeof listCommunicationsForDocument>> = [];
   let docEvents: Awaited<ReturnType<typeof listEventsForDocument>> = [];
@@ -183,6 +192,13 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
           <div className="flex flex-wrap items-center gap-2 xl:justify-end">
             <DocumentStatusBadge status={doc.status} locale={locale} />
             <Badge>{doc.currentVersion > 0 ? `v${doc.currentVersion}` : "-"}</Badge>
+            {linkedAta && (
+              <Button asChild variant="outline" className="border-amber-500/50 text-amber-400 hover:border-amber-400 hover:text-amber-300">
+                <Link href={`/atas-ia/${linkedAta.workstream}/${linkedAta.id}`}>
+                  ✎ Editar ata · {WORKSTREAM_LABELS[linkedAta.workstream]} · {new Date(linkedAta.meetingDate + "T00:00:00").toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" })}
+                </Link>
+              </Button>
+            )}
             {canManageDocument && (
               <Button asChild variant="outline">
                 <Link href={`/documents/${doc.id}/edit`}>{dictionary.documents.detail.edit}</Link>
