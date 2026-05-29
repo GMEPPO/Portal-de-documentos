@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   Edit3,
   ExternalLink,
@@ -19,24 +20,45 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import type { WorkstreamAtaRecord, Contramedida } from "@/lib/workstream-atas";
-import { updateAtaAction } from "./actions";
+import { updateAtaAction, deleteAtaAction } from "./actions";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 export function AtaDetailClient({
   ata,
   workstreamLabel,
   locale,
   initialSuccess,
+  isAdmin = false,
 }: {
   ata: WorkstreamAtaRecord;
   workstreamLabel: string;
   locale: string;
   initialSuccess?: boolean;
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(initialSuccess ?? false);
+
+  // Estado do modal de eliminação
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting]     = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await deleteAtaAction(ata.id, ata.workstream);
+    setDeleting(false);
+    if (result.ok) {
+      router.push("/atas-ia");
+      router.refresh();
+    } else {
+      setDeleteError(result.error);
+    }
+  }
 
   // Campos editáveis
   const [situacaoAtual, setSituacaoAtual] = useState(ata.situacaoAtual);
@@ -134,6 +156,16 @@ export function AtaDetailClient({
                 <ExternalLink className="h-3.5 w-3.5" />
                 Ver documento
               </Link>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-red-500/40 bg-transparent px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Eliminar
+              </button>
             )}
           </>
         )}
@@ -323,6 +355,72 @@ export function AtaDetailClient({
           <SectionView number="5" title="Participantes" subtitle="" content={participantes} />
         </div>
       )}
+
+      {/* ── Modal de eliminação ── */}
+      <Dialog open={deleteOpen} onOpenChange={(v) => { if (!deleting) setDeleteOpen(v); }}>
+        <DialogContent className="max-w-md border-red-500/30 bg-slate-900 p-0">
+          <div className="p-6 space-y-4">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+                <AlertTriangle className="h-6 w-6 text-red-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-100">Eliminar ata permanentemente</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Esta ação é <span className="font-semibold text-red-400">irreversível</span> e não pode ser desfeita.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm">
+              <p className="mb-2 font-medium text-slate-200">Ao confirmar, serão eliminados permanentemente:</p>
+              <ul className="space-y-1.5 text-slate-400">
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 shrink-0 text-red-400">•</span>
+                  Esta ata e todo o seu conteúdo ({workstreamLabel} · {dateFormatted})
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 shrink-0 text-red-400">•</span>
+                  O documento associado em "Atas de Reunião"
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 shrink-0 text-red-400">•</span>
+                  Todos os PDFs gerados (todas as versões)
+                </li>
+              </ul>
+            </div>
+
+            {deleteError && (
+              <div className="flex items-start gap-2 rounded border border-red-500/40 bg-red-500/5 px-3 py-2 text-xs text-red-300">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setDeleteOpen(false)}
+                disabled={deleting}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1 bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />A eliminar…</>
+                ) : (
+                  <><Trash2 className="mr-2 h-4 w-4" />Eliminar permanentemente</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

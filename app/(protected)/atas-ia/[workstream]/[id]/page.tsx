@@ -19,7 +19,7 @@ export default async function AtaDetailPage({
   if (!VALID_WORKSTREAMS.includes(params.workstream as WorkstreamId)) notFound();
   const workstream = params.workstream as WorkstreamId;
 
-  await requireAuth();
+  const user = await requireAuth();
   const locale = getLocale();
 
   const ata = await getAta(params.id).catch(() => null);
@@ -31,6 +31,7 @@ export default async function AtaDetailPage({
       workstreamLabel={WORKSTREAM_LABELS[workstream]}
       locale={locale}
       initialSuccess={searchParams?.saved === "1"}
+      isAdmin={user.role === "admin"}
     />
   );
 }

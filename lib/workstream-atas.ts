@@ -166,6 +166,15 @@ export async function listAllAtas(limit = 100): Promise<WorkstreamAtaRecord[]> {
   return (data ?? []).map(mapRow);
 }
 
+export async function deleteAta(id: string): Promise<void> {
+  const supabase = getServiceClient();
+  const { error } = await supabase
+    .from("workstream_atas")
+    .delete()
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
 export async function getAtaByDocumentId(
   documentId: string,
 ): Promise<WorkstreamAtaRecord | null> {
