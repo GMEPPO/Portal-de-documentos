@@ -31,6 +31,7 @@ export interface DocumentRecord {
   status: DocumentStatus;
   currentVersion: number;
   authorId: string;
+  authorName?: string;
   ownerId: string;
   ownerName?: string;
   previewFilePath?: string;
@@ -61,6 +62,7 @@ export interface DocumentVersionRecord {
   versionNumber: number;
   changelog: string;
   createdBy: string;
+  createdByName?: string;
   createdAt: string;
   files?: DocumentVersionFileRecord[];
 }
@@ -82,6 +84,7 @@ export interface DocumentAuditRecord {
   id: string;
   event: string;
   actorId: string;
+  actorName?: string;
   at: string;
   metadata?: Record<string, unknown> | null;
 }

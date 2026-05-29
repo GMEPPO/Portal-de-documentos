@@ -57,6 +57,11 @@ function mapDocumentRow(row: any): DocumentRecord {
           ? row.ownerName
           : undefined;
 
+  const authorName =
+    typeof row.author?.name === "string"
+      ? row.author.name
+      : undefined;
+
   return {
     id: row.id,
     title: row.title,
@@ -66,6 +71,7 @@ function mapDocumentRow(row: any): DocumentRecord {
     status: row.status,
     currentVersion: row.current_version ?? row.currentVersion,
     authorId: row.author_id ?? row.authorId,
+    authorName,
     ownerId: row.owner_id ?? row.ownerId,
     ownerName,
     previewFilePath: row.preview_file_path ?? row.previewFilePath ?? undefined,
@@ -133,7 +139,7 @@ export async function listDocuments() {
 
   const { data, error } = await supabase
     .from("documents")
-    .select("*, owner:users!documents_owner_id_fkey(id,name)")
+    .select("*, owner:users!documents_owner_id_fkey(id,name), author:users!documents_author_id_fkey(id,name)")
     .order("updated_at", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -146,7 +152,7 @@ export async function getDocumentById(id: string) {
 
   const { data, error } = await supabase
     .from("documents")
-    .select("*, owner:users!documents_owner_id_fkey(id,name)")
+    .select("*, owner:users!documents_owner_id_fkey(id,name), author:users!documents_author_id_fkey(id,name)")
     .eq("id", id)
     .maybeSingle();
 
@@ -839,15 +845,37 @@ export async function listDocumentHistory(documentId: string) {
     filesByVersion.get(f.versionId)!.push(f);
   }
 
+  // Recolher IDs únicos de utilizadores (versões + audits) e buscar nomes numa só query
+  const userIds = new Set<string>();
+  for (const row of versionsResult.data ?? []) {
+    if (row.created_by) userIds.add(row.created_by);
+  }
+  for (const row of auditsResult.data ?? []) {
+    if (row.actor_id) userIds.add(row.actor_id);
+  }
+
+  const userNameMap = new Map<string, string>();
+  if (userIds.size > 0) {
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, name")
+      .in("id", Array.from(userIds));
+    for (const u of users ?? []) {
+      userNameMap.set(u.id, u.name);
+    }
+  }
+
   return {
-    versions: (versionsResult.data ?? []).map((row) =>
-      mapVersionRow(row, filesByVersion.get(row.id) ?? []),
-    ),
+    versions: (versionsResult.data ?? []).map((row) => ({
+      ...mapVersionRow(row, filesByVersion.get(row.id) ?? []),
+      createdByName: userNameMap.get(row.created_by) ?? undefined,
+    })),
     comments: (commentsResult.data ?? []).map(mapCommentRow),
     audits: (auditsResult.data ?? []).map((item) => ({
       id: item.id,
       event: item.event,
       actorId: item.actor_id,
+      actorName: userNameMap.get(item.actor_id) ?? undefined,
       at: item.created_at,
       metadata: item.metadata ?? null,
     })),

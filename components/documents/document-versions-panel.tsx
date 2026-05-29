@@ -25,6 +25,8 @@ type VersionItem = {
   id: string;
   versionNumber: number;
   changelog: string;
+  createdBy?: string;
+  createdByName?: string;
   createdAt: string;
   files: VersionFile[];
 };
@@ -286,7 +288,11 @@ export function DocumentVersionsPanel({
                 {`v${item.versionNumber} — ${item.changelog}`}
               </p>
               <p className="text-xs text-slate-400">
-                {new Date(item.createdAt).toLocaleString()} · {item.files.length} ficheiro{item.files.length !== 1 ? "s" : ""}
+                {new Date(item.createdAt).toLocaleString()}
+                {item.createdByName && (
+                  <> · <span className="text-slate-300">{item.createdByName}</span></>
+                )}
+                {" · "}{item.files.length} ficheiro{item.files.length !== 1 ? "s" : ""}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

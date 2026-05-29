@@ -162,6 +162,12 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
               <span className="text-slate-500">{dictionary.documents.detail.fields.owner}:</span>{" "}
               <span className="text-slate-300">{doc.ownerName ?? doc.ownerId}</span>
             </p>
+            {doc.authorName && doc.authorId !== doc.ownerId && (
+              <p>
+                <span className="text-slate-500">Criado por:</span>{" "}
+                <span className="text-slate-300">{doc.authorName}</span>
+              </p>
+            )}
             <p>
               <span className="text-slate-500">{dictionary.documents.detail.fields.available}:</span>{" "}
               <span className="text-slate-300">
@@ -308,9 +314,15 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
             <CardContent className="space-y-2 pt-5 text-sm">
               {history.audits.length === 0 && <p className="text-slate-400">{dictionary.documents.detail.noAudit}</p>}
               {history.audits.map((item) => (
-                <p key={item.id} className="rounded border border-slate-700 p-3">
-                  {new Date(item.at).toLocaleString(locale)} - {formatAuditEvent(item)}
-                </p>
+                <div key={item.id} className="rounded border border-slate-700 p-3 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-slate-200">{formatAuditEvent(item)}</p>
+                    {item.actorName && (
+                      <p className="mt-0.5 text-xs text-slate-500">por <span className="text-slate-400">{item.actorName}</span></p>
+                    )}
+                  </div>
+                  <span className="shrink-0 text-xs text-slate-500">{new Date(item.at).toLocaleString(locale)}</span>
+                </div>
               ))}
             </CardContent>
           </Card>
