@@ -24,7 +24,7 @@ export function DocumentWorkflowActions({
   if (!publishMode) return null;
 
   return (
-    <Button asChild size="sm" variant="outline" className="h-8 px-3 text-xs text-slate-200">
+    <Button asChild size="sm" className="h-8 px-4 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-sm shadow-blue-900/40">
       <Link href={`/documents/${documentId}/edit?mode=${publishMode}`}>
         {dictionary.documents.workflow.publish}
       </Link>
