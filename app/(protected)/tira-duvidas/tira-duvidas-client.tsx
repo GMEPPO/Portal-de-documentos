@@ -119,7 +119,7 @@ const WELCOME: Message = {
   id: "welcome",
   role: "assistant",
   content:
-    "Olá! Sou o assistente de documentos do DOCFLOW. Posso responder a questões sobre as políticas, regulamentos e procedimentos da organização com base nos documentos disponíveis.\n\nEsta é uma demonstração — as respostas são simuladas para ilustrar o funcionamento previsto. Como posso ajudar?",
+    "Olá! Sou o assistente de documentos da Gestão Documental. Posso responder a questões sobre as políticas, regulamentos e procedimentos da organização com base nos documentos disponíveis.\n\nComo posso ajudar?",
   sources: [],
 };
 
@@ -228,7 +228,7 @@ export function TiraDuvidasClient({ user }: { user: AppUser }) {
             </div>
             <div>
               <p className="text-sm font-medium text-slate-200">Assistente IA</p>
-              <p className="text-[10px] text-slate-500">DOCFLOW · Powered by base documental</p>
+              <p className="text-[10px] text-slate-500">Gestão Documental · Powered by base documental</p>
             </div>
             <span className="ml-auto rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-400">
               Demo
