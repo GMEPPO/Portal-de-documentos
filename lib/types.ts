@@ -77,3 +77,68 @@ export interface DocumentAuditRecord {
   at: string;
   metadata?: Record<string, unknown> | null;
 }
+
+export type CommunicationStatus = "pending" | "sent" | "failed";
+
+export interface CommunicationRecord {
+  id: string;
+  documentId: string;
+  subject: string;
+  message: string;
+  sentBy: string;
+  sentAt: string;
+  n8nStatus: CommunicationStatus;
+  n8nError: string | null;
+  recipientCount: number;
+  tagsSnapshot: string[];
+  departmentsSnapshot: string[];
+}
+
+export interface CommunicationRecipientRecord {
+  id: string;
+  communicationId: string;
+  userId: string | null;
+  email: string;
+  name: string | null;
+  department: string | null;
+}
+
+export interface CommunicationAttachmentRecord {
+  id: string;
+  communicationId: string;
+  storagePath: string;
+  fileName: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  createdAt: string;
+}
+
+export type EventKind = "meeting" | "training" | "presentation" | "other";
+export type EventDocumentRole = "related" | "minutes";
+
+export interface EventRecord {
+  id: string;
+  subject: string;
+  description: string | null;
+  kind: EventKind;
+  startsAt: string;
+  endsAt: string | null;
+  location: string | null;
+  isOnline: boolean;
+  onlineUrl: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EventDocumentLink {
+  eventId: string;
+  documentId: string;
+  role: EventDocumentRole;
+}
+
+export interface EventAttendeeRecord {
+  eventId: string;
+  userId: string;
+  createdAt: string;
+}

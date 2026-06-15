@@ -63,5 +63,51 @@ export const adminUserUpdateSchema = z.object({
   role: userRoleSchema,
 });
 
+export const tagInputSchema = z.object({
+  name: z.string().min(2).max(80),
+  department: z.string().optional(),
+});
+
+export const tagUpdateSchema = tagInputSchema.extend({
+  id: z.string().uuid(),
+});
+
+const communicationAttachmentSchema = z.object({
+  storagePath: z.string().min(1),
+  fileName: z.string().min(1),
+  mimeType: z.string().nullable().optional(),
+  sizeBytes: z.number().int().nonnegative().nullable().optional(),
+});
+
+export const communicationDraftSchema = z.object({
+  documentId: z.string().uuid(),
+  subject: z.string().min(3).max(200),
+  message: z.string().min(3).max(5000),
+  attachments: z.array(communicationAttachmentSchema).default([]),
+});
+
+export const eventKindSchema = z.enum([
+  "meeting",
+  "training",
+  "presentation",
+  "other",
+]);
+
+export const eventInputSchema = z.object({
+  subject: z.string().min(3).max(200),
+  description: z.string().max(2000).optional(),
+  kind: eventKindSchema,
+  startsAt: z.string().min(1),
+  endsAt: z.string().optional(),
+  location: z.string().max(200).optional(),
+  isOnline: z.boolean(),
+  onlineUrl: z.string().max(500).optional(),
+  documentIds: z.array(z.string().uuid()).default([]),
+  minutesDocumentIds: z.array(z.string().uuid()).default([]),
+  attendeeIds: z.array(z.string().uuid()).default([]),
+});
+
 export type DocumentCreateInput = z.infer<typeof documentCreateSchema>;
 export type DocumentUpdateInput = z.infer<typeof documentUpdateSchema>;
+export type CommunicationDraft = z.infer<typeof communicationDraftSchema>;
+export type EventInput = z.infer<typeof eventInputSchema>;
