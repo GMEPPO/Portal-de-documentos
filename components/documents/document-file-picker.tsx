@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function DocumentFilePicker({
-  onFilesChange,
+  onFileChange,
   className,
+  acceptedFileTypesLabel = "PDF, Word, MP4 ou MP3",
   labels,
 }: {
-  onFilesChange: (files: File[]) => void;
+  onFileChange: (file: File | null) => void;
   className?: string;
+  acceptedFileTypesLabel?: string;
   labels?: {
     attach: string;
     helper: string;
@@ -20,20 +22,11 @@ export function DocumentFilePicker({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [files, setFiles] = useState<File[]>([]);
+  const [fileName, setFileName] = useState<string | null>(null);
 
-  function addFiles(incoming: File[]) {
-    const merged = [...files, ...incoming].filter(
-      (f, i, arr) => arr.findIndex((x) => x.name === f.name) === i,
-    );
-    setFiles(merged);
-    onFilesChange(merged);
-  }
-
-  function removeFile(name: string) {
-    const updated = files.filter((f) => f.name !== name);
-    setFiles(updated);
-    onFilesChange(updated);
+  function pickFile(file: File | null) {
+    setFileName(file?.name ?? null);
+    onFileChange(file);
   }
 
   return (
@@ -43,58 +36,64 @@ export function DocumentFilePicker({
           "flex items-center justify-between gap-3 rounded-lg border border-dashed border-slate-700 bg-slate-800/40 p-4",
           isDragging && "border-amber-400/80 bg-amber-400/10",
         )}
-        onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={(e) => {
           e.preventDefault();
           setIsDragging(false);
-          addFiles(Array.from(e.dataTransfer.files));
+          const file = e.dataTransfer.files?.[0] ?? null;
+          pickFile(file);
         }}
       >
         <div className="min-w-0">
-          <p className="text-sm font-medium">{labels?.attach ?? "Adjuntar ficheiros"}</p>
+          <p className="text-sm font-medium">{labels?.attach ?? "Adjuntar ficheiro"}</p>
           <p className="text-xs text-slate-400">
-            {labels?.helper ?? "Arrasta e larga aqui ou clica em Adicionar. Formatos: PDF, Word, MP4, MP3, M4A"}
+            {(labels?.helper ?? "Arrasta e larga aqui ou seleciona um ficheiro. Formatos: {types}")
+              .replace("{types}", acceptedFileTypesLabel)}
           </p>
+          {fileName && (
+            <p className="mt-2 truncate text-xs text-slate-300">{fileName}</p>
+          )}
         </div>
+
         <div className="shrink-0">
-          <Button type="button" variant="outline" onClick={() => inputRef.current?.click()}>
-            {labels?.browse ?? "Adicionar"}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => inputRef.current?.click()}
+          >
+            {labels?.browse ?? "Buscar"}
           </Button>
         </div>
+
         <input
           ref={inputRef}
           type="file"
-          multiple
-          accept=".pdf,.doc,.docx,.mp4,.webm,.mp3,.m4a,.wav"
+          accept=".pdf,.doc,.docx,.mp4,.mp3"
           className="hidden"
           onChange={(e) => {
-            addFiles(Array.from(e.target.files ?? []));
-            e.target.value = "";
+            const file = e.target.files?.[0] ?? null;
+            pickFile(file);
           }}
         />
       </div>
 
-      {files.length > 0 && (
-        <ul className="space-y-1">
-          {files.map((file) => (
-            <li
-              key={file.name}
-              className="flex items-center justify-between gap-2 rounded-md border border-slate-700 bg-slate-800/30 px-3 py-2 text-xs text-slate-300"
-            >
-              <span className="truncate">{file.name}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-6 px-2 text-xs text-slate-400 hover:text-white"
-                onClick={() => removeFile(file.name)}
-              >
-                {labels?.remove ?? "Remover"}
-              </Button>
-            </li>
-          ))}
-        </ul>
+      {fileName && (
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-8 px-2 text-xs text-slate-300 hover:text-white"
+          onClick={() => pickFile(null)}
+        >
+          {labels?.remove ?? "Remover ficheiro"}
+        </Button>
       )}
     </div>
   );

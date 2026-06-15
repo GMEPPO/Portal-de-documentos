@@ -8,7 +8,6 @@ export const departmentOptions = [
   "EPPO",
   "FINANCEIRO",
   "COMUNICAÇÃO",
-  "GPMC",
 ] as const;
 
 export const mockUsers: AppUser[] = [

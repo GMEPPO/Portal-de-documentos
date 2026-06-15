@@ -1,18 +1,15 @@
 import Link from "next/link";
-import { FileText, Home, Mail, MessageCircleQuestion, ScrollText, Shield } from "lucide-react";
+import { FileText, Home, Shield } from "lucide-react";
 import type { AppUser, Locale } from "@/lib/types";
 import { LogoutButton } from "@/components/auth/logout-button";
-import { canManageCommunications, canManageUsers } from "@/lib/rbac";
+import { canManageUsers } from "@/lib/rbac";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { getLocaleOptions, getRoleLabel } from "@/lib/i18n-shared";
 
 const navItems = [
   { href: "/dashboard", labelKey: "dashboard", icon: Home },
   { href: "/documents", labelKey: "documents", icon: FileText },
-  { href: "/communications", labelKey: "communications", icon: Mail },
-  { href: "/tira-duvidas", labelKey: "tiraDuvidas", icon: MessageCircleQuestion },
-  { href: "/atas-ia", labelKey: "atasIa", icon: ScrollText },
-  { href: "/admin", labelKey: "admin", icon: Shield },
+  { href: "/admin/users", labelKey: "admin", icon: Shield },
 ] as const;
 
 export function AppShell({
@@ -28,9 +25,6 @@ export function AppShell({
     nav: {
       dashboard: string;
       documents: string;
-      communications: string;
-      tiraDuvidas: string;
-      atasIa: string;
       admin: string;
     };
     signOut: string;
@@ -39,8 +33,9 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const visibleNavItems = navItems.filter((item) => {
-    if (item.href.startsWith("/admin")) return canManageUsers(user.role);
-    if (item.href.startsWith("/communications")) return canManageCommunications(user.role);
+    if (item.href.startsWith("/admin")) {
+      return canManageUsers(user.role);
+    }
     return true;
   });
 

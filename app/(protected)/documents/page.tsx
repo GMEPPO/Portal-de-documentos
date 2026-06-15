@@ -8,21 +8,12 @@ import { requireAuth } from "@/lib/auth";
 import { getDictionary } from "@/lib/dictionary";
 import { getLocale } from "@/lib/i18n";
 import { getDocumentStatusLabels } from "@/lib/i18n-shared";
-import { departmentOptions, getCategoryNameById, mockCategories } from "@/lib/constants";
+import { departmentOptions, mockCategories } from "@/lib/constants";
 import { searchDocumentsByQuery } from "@/lib/document-search";
 import { listDocuments } from "@/lib/documents-service";
 import { canAccessDocumentStatus } from "@/lib/rbac";
 import type { DocumentStatus } from "@/lib/types";
 import type { ReactNode } from "react";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
-
-async function loadAvailableTags() {
-  const supabase = createSupabaseServerClient();
-  if (!supabase) return [];
-  const { data, error } = await supabase.from("document_tags").select("name").order("name", { ascending: true });
-  if (error) return [];
-  return (data ?? []).map((r: any) => r.name).filter(Boolean);
-}
 
 function normalizeValue(value: string) {
   return value.trim().toLowerCase();
@@ -117,7 +108,6 @@ export default async function DocumentsPage({
     status?: string;
     category?: string;
     department?: string;
-    tag?: string | string[];
   };
 }) {
   const user = await requireAuth();
@@ -128,12 +118,6 @@ export default async function DocumentsPage({
   const selectedStatus = searchParams?.status?.trim() ?? "";
   const selectedCategory = searchParams?.category?.trim() ?? "";
   const selectedDepartment = searchParams?.department?.trim() ?? "";
-  const rawTag = searchParams?.tag;
-  const selectedTags = (Array.isArray(rawTag) ? rawTag.join(",") : rawTag ?? "")
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
-  const availableTags = await loadAvailableTags();
 
   const documents = (await listDocuments()).filter((doc) =>
     canAccessDocumentStatus(user.role, doc.status),
@@ -144,11 +128,8 @@ export default async function DocumentsPage({
     const departmentMatches =
       !selectedDepartment ||
       normalizeValue(doc.department) === normalizeValue(selectedDepartment);
-    const docTags = (doc.tags ?? []).map(normalizeValue);
-    const tagMatches =
-      selectedTags.length === 0 || selectedTags.every((st) => docTags.includes(normalizeValue(st)));
 
-    return statusMatches && categoryMatches && departmentMatches && tagMatches;
+    return statusMatches && categoryMatches && departmentMatches;
   });
 
   const searchResults = query
@@ -160,11 +141,8 @@ export default async function DocumentsPage({
         const departmentMatches =
           !selectedDepartment ||
           normalizeValue(result.document.department) === normalizeValue(selectedDepartment);
-        const docTags = (result.document.tags ?? []).map(normalizeValue);
-        const tagMatches =
-          selectedTags.length === 0 || selectedTags.every((st) => docTags.includes(normalizeValue(st)));
 
-        return statusMatches && categoryMatches && departmentMatches && tagMatches;
+        return statusMatches && categoryMatches && departmentMatches;
       })
     : [];
 
@@ -195,7 +173,6 @@ export default async function DocumentsPage({
             initialStatus={selectedStatus}
             initialCategory={selectedCategory}
             initialDepartment={selectedDepartment}
-            initialTags={selectedTags}
             statuses={statusOptions.map((status) => ({
               value: status,
               label: statusLabels[status],
@@ -208,7 +185,6 @@ export default async function DocumentsPage({
               value: department,
               label: department,
             }))}
-            tags={availableTags.map((t) => ({ value: t, label: t }))}
             labels={dictionary.documents.filters}
           />
         </CardContent>
@@ -269,9 +245,9 @@ export default async function DocumentsPage({
                 <tr>
                   <TH>{dictionary.documents.table.title}</TH>
                   <TH>{dictionary.documents.table.department}</TH>
-                  <TH>{dictionary.documents.table.category}</TH>
                   <TH>{dictionary.documents.table.version}</TH>
                   <TH>{dictionary.documents.table.status}</TH>
+                  <TH />
                 </tr>
               </THead>
               <TBody>
@@ -284,16 +260,16 @@ export default async function DocumentsPage({
                 )}
                 {filteredDocuments.map((doc) => (
                   <tr key={doc.id}>
-                    <TD>
-                      <Link href={`/documents/${doc.id}`} className="hover:underline">
-                        {doc.title}
-                      </Link>
-                    </TD>
+                    <TD>{doc.title}</TD>
                     <TD>{doc.department}</TD>
-                    <TD>{getCategoryNameById(doc.categoryId)}</TD>
                     <TD>{doc.currentVersion > 0 ? `v${doc.currentVersion}` : "-"}</TD>
                     <TD>
                       <DocumentStatusBadge status={doc.status} locale={locale} />
+                    </TD>
+                    <TD className="text-right">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/documents/${doc.id}`}>{dictionary.documents.viewDetail}</Link>
+                      </Button>
                     </TD>
                   </tr>
                 ))}

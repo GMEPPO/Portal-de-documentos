@@ -10,11 +10,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return locale === "es"
     ? {
-        title: "Gestão Documental",
+        title: "Plataforma Documental Interna",
         description: "Gestión documental empresarial con control de acceso y versiones.",
       }
     : {
-        title: "Gestão Documental",
+        title: "Plataforma Documental Interna",
         description: "Gestão documental empresarial com controlo de acesso e versões.",
       };
 }

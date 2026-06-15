@@ -16,10 +16,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DocumentFilePicker } from "@/components/documents/document-file-picker";
-import { TagsPicker } from "@/components/documents/tags-picker";
 import { pushToast } from "@/components/ui/toaster";
 import type { DocumentStatus } from "@/lib/types";
-import { getDocumentFileType } from "@/lib/document-file";
+import { getDocumentFileType, getDocumentFileTypeLabel } from "@/lib/document-file";
 import { departmentOptions } from "@/lib/constants";
 
 const documentVersionFormSchema = z.object({
@@ -27,7 +26,6 @@ const documentVersionFormSchema = z.object({
   summary: z.string().min(8).max(1000),
   department: z.string().min(2).max(100),
   versionNumber: z.coerce.number().int().positive(),
-  tags: z.array(z.string().min(1)).default([]),
   internalNotes: z.string().max(2000).optional(),
 });
 
@@ -37,7 +35,6 @@ export function DocumentVersionForm({
   documentId,
   mode,
   initialValues,
-  availableTags,
 }: {
   documentId: string;
   mode: "update" | "publish";
@@ -48,10 +45,9 @@ export function DocumentVersionForm({
     currentFilename?: string | null;
     hasReusableReviewFile?: boolean;
   };
-  availableTags: string[];
 }) {
   const router = useRouter();
-  const [files, setFiles] = useState<File[]>([]);
+  const [mainFile, setMainFile] = useState<File | null>(null);
   const form = useForm<DocumentVersionFormInput>({
     resolver: zodResolver(documentVersionFormSchema),
     defaultValues: {
@@ -59,7 +55,6 @@ export function DocumentVersionForm({
       summary: initialValues.summary,
       department: initialValues.department,
       versionNumber: initialValues.nextVersionNumber,
-      tags: [],
       internalNotes: initialValues.internalNotes ?? "",
     },
   });
@@ -75,34 +70,32 @@ export function DocumentVersionForm({
       className="space-y-4"
       onSubmit={form.handleSubmit(
         async (values) => {
-          if (files.length === 0 && !canReuseCurrentReviewFile) {
+          if (!mainFile && !canReuseCurrentReviewFile) {
             pushToast({
               id: crypto.randomUUID(),
-              title: "Ficheiro obrigatório",
-              description: "Adjunta pelo menos um ficheiro antes de continuar.",
+              title: "Ficheiro obrigatorio",
+              description: "Debes adjuntar un ficheiro antes de continuar.",
             });
             return;
           }
 
-          for (const file of files) {
-            if (!getDocumentFileType(file.name)) {
-              pushToast({
-                id: crypto.randomUUID(),
-                title: "Formato não suportado",
-                description: `Usa apenas ficheiros PDF, Word, MP4, MP3 ou M4A. Ficheiro inválido: ${file.name}`,
-              });
-              return;
-            }
+          const fileType = mainFile ? getDocumentFileType(mainFile.name) : null;
+          if (mainFile && !fileType) {
+            pushToast({
+              id: crypto.randomUUID(),
+              title: "Formato nao suportado",
+              description: "Usa apenas ficheiros PDF, Word, MP4 ou MP3.",
+            });
+            return;
           }
 
           const formData = new FormData();
-          for (const file of files) {
-            formData.append("files[]", file, file.name);
+          if (mainFile) {
+            formData.append("mainFile", mainFile, mainFile.name);
           }
           formData.append("versionNumber", String(values.versionNumber));
           formData.append("summary", values.summary);
           formData.append("department", values.department);
-          for (const tag of values.tags ?? []) formData.append("tags[]", tag);
           formData.append("statusAfterUpload", targetStatus);
           formData.append(
             "changelog",
@@ -132,14 +125,19 @@ export function DocumentVersionForm({
 
           pushToast({
             id: crypto.randomUUID(),
-            title: mode === "publish" ? "Documento publicado" : "Nova versão publicada",
+            title: mode === "publish" ? "Documento publicado" : "Nova versao publicada",
             description:
               mode === "publish"
-                ? "Documento publicado com sucesso."
-                : "A nova versão foi publicada com sucesso.",
+                ? `${getDocumentFileTypeLabel(fileType ?? "document")} publicado com sucesso. A indexacao da pesquisa sera enviada ao n8n em seguida.`
+                : "A nova versao foi publicada e substituiu o conteudo anteriormente publicado. A indexacao da pesquisa sera enviada ao n8n em seguida.",
           });
 
-          console.info("[document-version-form] triggering /process", { documentId, mode });
+          console.info("[document-version-form] triggering /process", {
+            documentId,
+            mode,
+            filename: mainFile?.name ?? initialValues.currentFilename ?? "existing-file",
+            fileType: fileType ?? "document",
+          });
           void fetch(`/api/documents/${documentId}/process`, {
             method: "POST",
             keepalive: true,
@@ -217,12 +215,6 @@ export function DocumentVersionForm({
         readOnly={isPublishingReviewedVersion}
         {...form.register("versionNumber", { valueAsNumber: true })}
       />
-      <TagsPicker
-        availableTags={availableTags}
-        selectedTags={form.watch("tags") ?? []}
-        onChange={(next) => form.setValue("tags", next, { shouldValidate: true })}
-        labels={{ title: "Tags", hint: "Seleciona os departamentos envolvidos (e outras tags úteis)." }}
-      />
       {isPublishingReviewedVersion && (
         <p className="text-xs text-slate-400">
           Ao publicar um documento em revisao, a plataforma mantem a versao atual.
@@ -235,15 +227,12 @@ export function DocumentVersionForm({
       )}
       <Textarea placeholder="Notas internas" {...form.register("internalNotes")} />
       <DocumentFilePicker
-        onFilesChange={setFiles}
-        labels={{
-          attach: "Adjuntar ficheiros",
-          helper: canReuseCurrentReviewFile
-            ? "Ficheiros opcionais para substituir os atuais. PDF, Word, MP4, MP3, M4A"
-            : "Arrasta e larga ou clica em Adicionar. Formatos: PDF, Word, MP4, MP3, M4A",
-          browse: "Adicionar",
-          remove: "Remover",
-        }}
+        onFileChange={setMainFile}
+        acceptedFileTypesLabel={
+          canReuseCurrentReviewFile
+            ? "Ficheiro opcional para substituir o atual"
+            : "PDF, Word, MP4 ou MP3"
+        }
       />
       <Button type="submit" disabled={form.formState.isSubmitting}>
         {form.formState.isSubmitting

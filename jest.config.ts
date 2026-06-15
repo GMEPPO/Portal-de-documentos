@@ -1,7 +1,4 @@
 import type { Config } from "jest";
-import nextJest from "next/jest.js";
-
-const createJestConfig = nextJest({ dir: "./" });
 
 const config: Config = {
   testEnvironment: "jsdom",
@@ -11,4 +8,4 @@ const config: Config = {
   },
 };
 
-export default createJestConfig(config);
+export default config;

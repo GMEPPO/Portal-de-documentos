@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,7 +25,6 @@ export function LoginForm({
     passwordPlaceholder: string;
     submit: string;
     submitting: string;
-    forgotPassword: string;
   };
 }) {
   const router = useRouter();
@@ -93,14 +91,6 @@ export function LoginForm({
         {form.formState.errors.password && (
           <p className="text-sm text-red-400">{form.formState.errors.password.message}</p>
         )}
-        <div className="flex justify-end pt-0.5">
-          <Link
-            href="/recuperar-password"
-            className="text-xs text-slate-400 hover:text-amber-400 transition-colors"
-          >
-            {labels.forgotPassword}
-          </Link>
-        </div>
       </div>
 
       {errorMessage && <p className="text-sm text-red-400">{errorMessage}</p>}
@@ -111,3 +101,4 @@ export function LoginForm({
     </form>
   );
 }
+

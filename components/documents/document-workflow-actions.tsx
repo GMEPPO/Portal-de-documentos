@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getDictionary } from "@/lib/dictionary";
+import { getDocumentStatusLabels } from "@/lib/i18n-shared";
 import type { DocumentStatus, Locale } from "@/lib/types";
 
 export function DocumentWorkflowActions({
@@ -15,19 +16,33 @@ export function DocumentWorkflowActions({
   locale: Locale;
 }) {
   const dictionary = getDictionary(locale);
-
-  const publishMode =
-    currentStatus === "in_review" || currentStatus === "updating"
-      ? "publish"
-      : null;
-
-  if (!publishMode) return null;
-
+  const statusLabels = getDocumentStatusLabels(locale);
   return (
-    <Button asChild size="sm" className="h-8 px-4 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-sm shadow-blue-900/40">
-      <Link href={`/documents/${documentId}/edit?mode=${publishMode}`}>
-        {dictionary.documents.workflow.publish}
-      </Link>
-    </Button>
+    <div className="flex flex-col gap-2 rounded-lg border border-slate-700 bg-slate-900/60 p-3 md:min-w-[280px]">
+      <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
+        {dictionary.documents.workflow.title}
+      </p>
+      <p className="text-sm text-slate-300">
+        {dictionary.documents.workflow.current}: <span className="text-slate-100">{statusLabels[currentStatus]}</span>
+      </p>
+
+      {currentStatus === "in_review" && (
+        <Button asChild>
+          <Link href={`/documents/${documentId}/edit?mode=publish`}>{dictionary.documents.workflow.publishContent}</Link>
+        </Button>
+      )}
+
+      {currentStatus === "published" && (
+        <Button asChild>
+          <Link href={`/documents/${documentId}/edit?mode=update`}>{dictionary.documents.workflow.updateDocument}</Link>
+        </Button>
+      )}
+
+      {currentStatus === "updating" && (
+        <Button asChild>
+          <Link href={`/documents/${documentId}/edit?mode=publish`}>{dictionary.documents.workflow.publishVersion}</Link>
+        </Button>
+      )}
+    </div>
   );
 }
