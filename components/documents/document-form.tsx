@@ -37,6 +37,8 @@ export function DocumentForm({
     departmentPlaceholder: string;
     selectDepartment: string;
     versionPlaceholder: string;
+    tagsTitle?: string;
+    tagsHint?: string;
     internalNotesPlaceholder: string;
     save: string;
     filePicker: {
