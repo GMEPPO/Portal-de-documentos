@@ -23,10 +23,12 @@ import { departmentOptions } from "@/lib/constants";
 export function DocumentForm({
   onSubmit,
   categories,
+  availableTags = [],
   labels,
 }: {
   onSubmit: (values: DocumentCreateInput, mainFile: File | null) => Promise<void>;
   categories: DocumentCategory[];
+  availableTags?: string[];
   labels: {
     unsupportedTitle: string;
     unsupportedDescription: string;
@@ -64,6 +66,17 @@ export function DocumentForm({
       internalNotes: "",
     },
   });
+  const selectedTags = form.watch("tags") ?? [];
+
+  function toggleTag(tag: string) {
+    form.setValue(
+      "tags",
+      selectedTags.includes(tag)
+        ? selectedTags.filter((item) => item !== tag)
+        : [...selectedTags, tag],
+      { shouldDirty: true, shouldValidate: true },
+    );
+  }
 
   return (
     <form
@@ -131,6 +144,34 @@ export function DocumentForm({
         placeholder={labels.versionPlaceholder}
         {...form.register("versionNumber", { valueAsNumber: true })}
       />
+      {availableTags.length > 0 ? (
+        <fieldset className="space-y-2 rounded-md border border-slate-700 p-3">
+          {labels.tagsTitle ? (
+            <legend className="px-1 text-sm font-medium text-slate-100">
+              {labels.tagsTitle}
+            </legend>
+          ) : null}
+          {labels.tagsHint ? (
+            <p className="text-xs text-slate-400">{labels.tagsHint}</p>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {availableTags.map((tag) => (
+              <label
+                key={tag}
+                className="inline-flex items-center gap-2 rounded-md border border-slate-700 px-3 py-2 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={selectedTags.includes(tag)}
+                  onChange={() => toggleTag(tag)}
+                />
+                <span>{tag}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
       <Textarea placeholder={labels.internalNotesPlaceholder} {...form.register("internalNotes")} />
       <DocumentFilePicker
         onFileChange={setMainFile}
