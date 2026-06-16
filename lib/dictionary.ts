@@ -272,6 +272,7 @@ export function getDictionary(locale: Locale) {
         tabs: { comms: "Comunicaciones", events: "Eventos" },
         empty: "Sin comunicaciones.",
         noRecipients: "Sin destinatarios para las etiquetas de este documento.",
+        sending: "Enviando...",
         actions: { send: "Comunicar", preview: "Vista previa de destinatarios" },
         fields: {
           subject: "Asunto",
@@ -288,6 +289,10 @@ export function getDictionary(locale: Locale) {
         updateSuccess: "Evento actualizado.",
         deleteSuccess: "Evento eliminado.",
         empty: "Sin eventos.",
+        creating: "Creando evento...",
+        saving: "Guardando...",
+        delete: "Eliminar evento",
+        deleting: "Eliminando...",
         actions: { create: "Nuevo evento", edit: "Editar" },
         fields: {
           subject: "Asunto",
@@ -581,6 +586,7 @@ export function getDictionary(locale: Locale) {
       tabs: { comms: "Comunicações", events: "Eventos" },
       empty: "Sem comunicações.",
       noRecipients: "Sem destinatários para as etiquetas deste documento.",
+      sending: "A enviar...",
       actions: { send: "Comunicar", preview: "Pré-visualização de destinatários" },
       fields: {
         subject: "Assunto",
@@ -597,6 +603,10 @@ export function getDictionary(locale: Locale) {
       updateSuccess: "Evento atualizado.",
       deleteSuccess: "Evento eliminado.",
       empty: "Sem eventos.",
+      creating: "A criar evento...",
+      saving: "A guardar...",
+      delete: "Eliminar evento",
+      deleting: "A eliminar...",
       actions: { create: "Novo evento", edit: "Editar" },
       fields: {
         subject: "Assunto",
