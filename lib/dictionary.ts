@@ -293,7 +293,7 @@ export function getDictionary(locale: Locale) {
         saving: "Guardando...",
         delete: "Eliminar evento",
         deleting: "Eliminando...",
-        actions: { create: "Nuevo evento", edit: "Editar" },
+        actions: { create: "Nuevo evento", edit: "Editar", delete: "Eliminar evento" },
         fields: {
           subject: "Asunto",
           description: "Descripción",
@@ -607,7 +607,7 @@ export function getDictionary(locale: Locale) {
       saving: "A guardar...",
       delete: "Eliminar evento",
       deleting: "A eliminar...",
-      actions: { create: "Novo evento", edit: "Editar" },
+      actions: { create: "Novo evento", edit: "Editar", delete: "Eliminar evento" },
       fields: {
         subject: "Assunto",
         description: "Descrição",
