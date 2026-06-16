@@ -26,7 +26,7 @@ export function DocumentForm({
   availableTags = [],
   labels,
 }: {
-  onSubmit: (values: DocumentCreateInput, mainFile: File | null) => Promise<void>;
+  onSubmit: (values: DocumentCreateInput, files: File[]) => Promise<void>;
   categories: DocumentCategory[];
   availableTags?: string[];
   labels: {
@@ -91,7 +91,7 @@ export function DocumentForm({
           return;
         }
 
-        await onSubmit(values, mainFile);
+        await onSubmit(values, mainFile ? [mainFile] : []);
         form.reset();
         setMainFile(null);
       })}
